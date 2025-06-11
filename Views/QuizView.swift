@@ -2,9 +2,9 @@
 //  QuizView.swift
 //  Learny
 //
-//  Created by Jake Stoltz on 6/11/25.
+//  Created by Jake Stoltz on 6/11/25.  
 //
-
+ 
 import SwiftUI
 
 struct QuizView: View {
