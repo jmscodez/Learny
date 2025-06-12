@@ -18,7 +18,7 @@ struct CourseChatSetupView: View {
     }
 
     var body: some View {
-        ZStack {
+            ZStack {
             // Full-screen background colour that never shrinks, preventing the Progress tab from bleeding through
             Color.black.ignoresSafeArea()
 
@@ -38,10 +38,10 @@ struct CourseChatSetupView: View {
                     CurrentLessonsView(lessons: viewModel.selectedLessons)
                 }
                 
-                ScrollViewReader { proxy in
-                    ScrollView {
+                    ScrollViewReader { proxy in
+                        ScrollView {
                         VStack(spacing: 20) {
-                            ForEach(viewModel.messages) { message in
+                                ForEach(viewModel.messages) { message in
                                 MessageView(
                                     message: message,
                                     lessonSuggestions: viewModel.lessonSuggestions,
@@ -50,14 +50,22 @@ struct CourseChatSetupView: View {
                                     onGenerateMore: viewModel.generateMoreSuggestions,
                                     onClarificationResponse: viewModel.handleClarificationResponse
                                 )
-                                .id(message.id)
+                                        .id(message.id)
                             }
                         }
                         .padding()
-                    }
-                    .onChange(of: viewModel.messages) { _ in
-                        withAnimation(.spring()) {
-                            proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
+                        }
+                        .onChange(of: viewModel.messages) { _ in
+                            guard let last = viewModel.messages.last else { return }
+                            // Only auto-scroll for single-bubble updates (e.g., text messages) so the user can read large suggestion blocks.
+                            switch last.content {
+                            case .text, .thinkingIndicator, .descriptiveLoading, .lessonCountOptions, .clarificationOptions, .infoText, .generateMoreIdeasButton, .finalPrompt:
+                                withAnimation(.spring()) {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
+                            default:
+                                break
+                            }
                         }
                     }
                 }
@@ -104,7 +112,7 @@ private struct HeaderView: View {
     private var canGenerate: Bool { selectedCount > 0 }
     
     var body: some View {
-        HStack {
+                    HStack {
             Button(action: { presentationMode.wrappedValue.dismiss() }) {
                 Image(systemName: "xmark").font(.headline)
             }
@@ -257,6 +265,12 @@ private struct LessonCountOptionsView: View {
 private struct LessonSuggestionsView: View {
     let suggestions: [LessonSuggestion]
     let onToggleLesson: (UUID) -> Void
+
+    private var pages: [[LessonSuggestion]] {
+        stride(from: 0, to: suggestions.count, by: 5).map { idx in
+            Array(suggestions[idx ..< min(idx + 5, suggestions.count)])
+        }
+    }
     
     var body: some View {
         VStack(spacing: 12) {
@@ -264,10 +278,19 @@ private struct LessonSuggestionsView: View {
                 .font(.headline)
                 .foregroundColor(.white)
                 .fixedSize(horizontal: false, vertical: true)
-            
-            ForEach(suggestions) { suggestion in
-                LessonSuggestionRow(suggestion: suggestion, onToggle: onToggleLesson)
+
+            TabView {
+                ForEach(pages.indices, id: \.self) { pageIndex in
+                    VStack(spacing: 12) {
+                        ForEach(pages[pageIndex]) { suggestion in
+                            LessonSuggestionRow(suggestion: suggestion, onToggle: onToggleLesson)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
             }
+            .frame(height: 300) // enough to show 5 rows without overflow
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
         }
     }
 }
