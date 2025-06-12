@@ -18,53 +18,57 @@ struct CourseChatSetupView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HeaderView(
-                selectedCount: viewModel.selectedLessons.count,
-                onGenerate: {
-                    viewModel.validateAndProceed { shouldFinalize in
-                        if shouldFinalize {
-                            isFinalizing = true
-                        }
-                    }
-                }
-            )
+        ZStack {
+            // Full-screen background colour that never shrinks, preventing the Progress tab from bleeding through
+            Color.black.ignoresSafeArea()
 
-            if viewModel.canShowSuggestions {
-                CurrentLessonsView(lessons: viewModel.selectedLessons)
-            }
-            
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(spacing: 20) {
-                        ForEach(viewModel.messages) { message in
-                            MessageView(
-                                message: message,
-                                lessonSuggestions: viewModel.lessonSuggestions,
-                                onOptionSelected: viewModel.selectLessonCount,
-                                onToggleLesson: viewModel.toggleLessonSelection,
-                                onGenerateMore: viewModel.generateMoreSuggestions,
-                                onClarificationResponse: viewModel.handleClarificationResponse
-                            )
-                            .id(message.id)
+            VStack(spacing: 0) {
+                HeaderView(
+                    selectedCount: viewModel.selectedLessons.count,
+                    onGenerate: {
+                        viewModel.validateAndProceed { shouldFinalize in
+                            if shouldFinalize {
+                                isFinalizing = true
+                            }
                         }
                     }
-                    .padding()
+                )
+
+                if viewModel.canShowSuggestions {
+                    CurrentLessonsView(lessons: viewModel.selectedLessons)
                 }
-                .onChange(of: viewModel.messages) { _ in
-                    withAnimation(.spring()) {
-                        proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
+                
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            ForEach(viewModel.messages) { message in
+                                MessageView(
+                                    message: message,
+                                    lessonSuggestions: viewModel.lessonSuggestions,
+                                    onOptionSelected: viewModel.selectLessonCount,
+                                    onToggleLesson: viewModel.toggleLessonSelection,
+                                    onGenerateMore: viewModel.generateMoreSuggestions,
+                                    onClarificationResponse: viewModel.handleClarificationResponse
+                                )
+                                .id(message.id)
+                            }
+                        }
+                        .padding()
+                    }
+                    .onChange(of: viewModel.messages) { _ in
+                        withAnimation(.spring()) {
+                            proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
+                        }
                     }
                 }
-            }
-            
-            InputBarView(userInput: $userInput) {
-                viewModel.addUserMessage(userInput)
-                userInput = ""
+                
+                InputBarView(userInput: $userInput) {
+                    viewModel.addUserMessage(userInput)
+                    userInput = ""
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
         .sheet(isPresented: $isFinalizing) {
             FinalizeCourseView(
@@ -218,6 +222,7 @@ private struct FinalPromptView: View {
                 .foregroundColor(.white)
             Text("You can type your own ideas in the chat below, or ask me to generate more suggestions.")
                 .foregroundColor(.white.opacity(0.8))
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -258,6 +263,7 @@ private struct LessonSuggestionsView: View {
             Text("Here are some initial lesson ideas:")
                 .font(.headline)
                 .foregroundColor(.white)
+                .fixedSize(horizontal: false, vertical: true)
             
             ForEach(suggestions) { suggestion in
                 LessonSuggestionRow(suggestion: suggestion, onToggle: onToggleLesson)

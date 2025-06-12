@@ -151,6 +151,8 @@ final class CourseChatViewModel: ObservableObject {
             
             messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(suggestionIDs)))
             
+            // Ensure we only have one final prompt at a time
+            messages.removeAll { $0.content == .finalPrompt }
             messages.append(ChatMessage(role: .assistant, content: .finalPrompt))
             messages.append(ChatMessage(role: .assistant, content: .generateMoreIdeasButton))
         }
