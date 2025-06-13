@@ -1,12 +1,6 @@
 import SwiftUI
 
 struct MainView: View {
-    init() {
-        // Tab bar icons/tint
-        UITabBar.appearance().barTintColor = UIColor.black
-        UITabBar.appearance().unselectedItemTintColor = .lightGray
-    }
-
     var body: some View {
         TabView {
             TopicInputView()
@@ -27,7 +21,6 @@ struct MainView: View {
                     Text("Progress")
                 }
         }
-        .accentColor(.cyan)
         .preferredColorScheme(.dark)
     }
 }

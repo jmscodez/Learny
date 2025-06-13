@@ -9,23 +9,29 @@ struct LearnyApp: App {
     @StateObject private var prefs    = UserPreferencesManager()
 
     init() {
+        // --- Navigation Bar Appearance ---
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithOpaqueBackground()
+        navAppearance.backgroundColor = UIColor.black
+        navAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+        navAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+
         // --- Tab Bar Appearance ---
         let appearance = UITabBarAppearance()
-        
-        // Set background to opaque and black
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor.black
-        
+
         // Set color for unselected items
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor.white
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.white]
         
         // Set color for selected items
-        let selectedColor = UIColor.cyan // The same blue from before
+        let selectedColor = UIColor.cyan
         appearance.stackedLayoutAppearance.selected.iconColor = selectedColor
-        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: selectedColor]
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.white]
 
-        // Apply the appearance
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
@@ -40,4 +46,4 @@ struct LearnyApp: App {
                 .environmentObject(prefs)
         }
     }
-}
+} 

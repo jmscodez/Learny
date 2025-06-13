@@ -6,6 +6,17 @@ enum Difficulty: String, Codable, CaseIterable {
 
 enum Pace: String, Codable, CaseIterable {
     case quickReview = "quick_review", balanced, deepDive = "deep_dive"
+    
+    var displayName: String {
+        switch self {
+        case .quickReview:
+            return "Quick Review"
+        case .balanced:
+            return "Balanced"
+        case .deepDive:
+            return "Deep Dive"
+        }
+    }
 }
 
 enum CreationMethod: String, Codable, CaseIterable {

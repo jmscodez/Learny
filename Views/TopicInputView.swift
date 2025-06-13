@@ -5,7 +5,6 @@ struct TopicInputView: View {
     @State private var topic: String = ""
     @State private var difficulty: Difficulty = .beginner
     @State private var pace: Pace = .balanced
-    @State private var navigateToCourseChat = false
     @State private var showGuidedSetup = false // For the placeholder sheet
     @State private var showAIChat = false
 

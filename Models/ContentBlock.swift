@@ -1,60 +1,36 @@
 import Foundation
 
-/// A single line of dialogue in a lesson.
-struct DialogueLine: Identifiable, Codable, Hashable {
-    let id = UUID()
-    let speaker: String
-    let text: String
-}
-
-/// A matching‐pairs mini‐game model.
-struct MatchingPair: Identifiable, Codable, Hashable {
-    let id = UUID()
-    let term: String
-    let definition: String
-}
-
-struct MatchingGame: Codable, Hashable {
-    let pairs: [MatchingPair]
-}
-
-/// All possible content blocks in a lesson.
-enum ContentBlock: Codable, Hashable {
+/// Represents the different types of content that can be in a lesson.
+/// Using an enum with associated values is a powerful way to handle this.
+enum ContentBlock: Identifiable, Codable, Hashable {
     case text(String)
     case dialogue([DialogueLine])
     case matching(MatchingGame)
 
-    private enum CodingKeys: CodingKey { case type, value }
-    private enum BlockType: String, Codable { case text, dialogue, matching }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
+    // The 'id' is needed for ForEach loops in SwiftUI.
+    var id: UUID {
+        // We can generate a stable ID based on the content.
         switch self {
-        case .text(let str):
-            try container.encode(BlockType.text, forKey: .type)
-            try container.encode(str, forKey: .value)
+        case .text(let text):
+            return "text-\(text)".toUUID()
         case .dialogue(let lines):
-            try container.encode(BlockType.dialogue, forKey: .type)
-            try container.encode(lines, forKey: .value)
+            // Use the ID of the first line for stability
+            return lines.first?.id ?? UUID()
         case .matching(let game):
-            try container.encode(BlockType.matching, forKey: .type)
-            try container.encode(game, forKey: .value)
-        }
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let type = try container.decode(BlockType.self, forKey: .type)
-        switch type {
-        case .text:
-            let str = try container.decode(String.self, forKey: .value)
-            self = .text(str)
-        case .dialogue:
-            let lines = try container.decode([DialogueLine].self, forKey: .value)
-            self = .dialogue(lines)
-        case .matching:
-            let game = try container.decode(MatchingGame.self, forKey: .value)
-            self = .matching(game)
+            return game.id
         }
     }
 }
+
+// Helper extension to create a UUID from a string for stable IDs.
+fileprivate extension String {
+    func toUUID() -> UUID {
+        return UUID(uuidString: self) ?? UUID()
+    }
+}
+
+enum BlockType: String, Codable, CaseIterable {
+    case text
+    case image
+    // Future types like 'video', 'code' could be added here.
+} 
