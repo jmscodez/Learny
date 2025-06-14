@@ -1,5 +1,24 @@
 import SwiftUI
 
+// A simple linear progress bar to replace ProgressView determinate style
+struct CustomProgressBar: View {
+    var progress: Double // 0.0 to 1.0
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .frame(height: 4)
+                    .foregroundColor(.gray.opacity(0.3))
+                Capsule()
+                    .frame(width: geo.size.width * CGFloat(progress), height: 4)
+                    .foregroundColor(.cyan)
+                    .animation(.easeInOut, value: progress)
+            }
+        }
+        .frame(height: 4)
+    }
+}
+
 struct LessonMapView: View {
     @StateObject private var viewModel: LessonMapViewModel
     @State private var showCourseOverview = false
@@ -9,39 +28,93 @@ struct LessonMapView: View {
     }
 
     var body: some View {
+        let completedCount = viewModel.lessons.filter { $0.isComplete }.count
+        let totalCount = viewModel.lessons.count
+        let percent = totalCount > 0 ? Double(completedCount) / Double(totalCount) : 0
+        let xp = completedCount * 10
+        let timeline = Array(zip(viewModel.lessons.indices, viewModel.lessons))
+
         NavigationStack {
             ZStack {
-                Color(red: 0.1, green: 0.1, blue: 0.2).ignoresSafeArea()
-                
+                Color.black.ignoresSafeArea()
+
+                // Loading overlay
+                if viewModel.isGeneratingContent {
+                    Color.black.opacity(0.6).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        Text("Generating course content...")
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
                 ScrollView {
-                    VStack(spacing: 30) {
-                        ForEach(viewModel.lessons) { lesson in
-                            NavigationLink(value: lesson) {
-                                LessonNodeView(lesson: lesson)
+                    VStack(spacing: 24) {
+                        // Progress Header
+                        VStack(spacing: 12) {
+                            // Custom linear progress bar
+                            CustomProgressBar(progress: percent)
+
+                            HStack {
+                                Text("\(Int(percent * 100))% Complete")
+                                Spacer()
+                                Text("\(xp) XP Earned")
                             }
-                            .disabled(!lesson.isUnlocked)
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+
+                            Button(action: { showCourseOverview = true }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "info.circle")
+                                    Text("View Course Details")
+                                }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.cyan)
+                            }
                         }
-                    }
-                    .padding(.vertical, 40)
-                }
-                .navigationTitle(viewModel.course.title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            showCourseOverview = true
-                        }) {
-                            Image(systemName: "info.circle")
+                        .padding(.horizontal)
+                        
+                        // Timeline
+                        VStack(spacing: 40) {
+                            ForEach(timeline, id: \.0) { idx, _ in
+                                let lesson = viewModel.lessons[idx]
+                                VStack(spacing: 0) {
+                                    // Node
+                                    NavigationLink(destination: LessonDetailView(lesson: lesson)
+                                        .environmentObject(viewModel)) {
+                                        LessonNodeView(lesson: lesson)
+                                            .frame(maxWidth: .infinity, alignment: .center)
+                                    }
+                                    .disabled(!lesson.isUnlocked)
+
+                                    // Connector
+                                    if idx < totalCount - 1 {
+                                        // Dashed line
+                                        Rectangle()
+                                            .frame(width: 2, height: 40)
+                                            .foregroundColor(.clear)
+                                            .overlay(
+                                                Rectangle()
+                                                    .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
+                                                    .foregroundColor(.cyan)
+                                            )
+                                    }
+                                }
+                            }
                         }
+                        .padding(.vertical, 30)
                     }
                 }
-                .sheet(isPresented: $showCourseOverview) {
-                    CourseOverviewView(course: viewModel.course)
-                }
-                .navigationDestination(for: Lesson.self) { lesson in
-                    LessonDetailView(lesson: lesson)
-                        .environmentObject(viewModel)
-                }
+                .background(Color.black)
+            }
+            .navigationTitle(viewModel.course.title)
+            .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showCourseOverview) {
+                CourseOverviewView(course: viewModel.course)
+            }
+            .onAppear {
+                viewModel.generateLessonContent()
             }
         }
         .accentColor(.white)

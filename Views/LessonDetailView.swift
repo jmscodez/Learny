@@ -15,32 +15,45 @@ struct LessonDetailView: View {
     }
 
     var body: some View {
+        // Find the lesson from the map view model to get live updates
+        // This is crucial for the content to appear once loaded
+        let lesson = lessonMapViewModel.lessons.first { $0.id == viewModel.lesson.id } ?? viewModel.lesson
+
         ZStack {
             // Use a dark theme background
             Color(red: 0.05, green: 0.05, blue: 0.1).ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 25) {
-                    // Loop through the content blocks of the lesson
-                    ForEach(viewModel.lesson.contentBlocks.indices, id: \.self) { index in
-                        let block = viewModel.lesson.contentBlocks[index]
-                        viewForContentBlock(block)
-                            .padding(.horizontal)
-                    }
-                    
-                    // Display the quiz if it exists
-                    if !viewModel.lesson.quiz.isEmpty {
-                        QuizView(
-                            questions: viewModel.lesson.quiz,
-                            userAnswers: $viewModel.userAnswers,
-                            onSubmit: {
-                                viewModel.submitQuiz()
-                            }
-                        )
-                        .padding(.horizontal)
-                    }
+            if lesson.contentBlocks.isEmpty {
+                 VStack(spacing: 16) {
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    Text("Loading Lesson...")
+                        .foregroundColor(.white)
                 }
-                .padding(.vertical)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 25) {
+                        // Loop through the content blocks of the lesson
+                        ForEach(lesson.contentBlocks.indices, id: \.self) { index in
+                            let block = lesson.contentBlocks[index]
+                            viewForContentBlock(block)
+                                .padding(.horizontal)
+                        }
+                        
+                        // Display the quiz if it exists
+                        if !lesson.quiz.isEmpty {
+                            QuizView(
+                                questions: lesson.quiz,
+                                userAnswers: $viewModel.userAnswers,
+                                onSubmit: {
+                                    viewModel.submitQuiz()
+                                }
+                            )
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical)
+                }
             }
         }
         .navigationTitle(viewModel.lesson.title)

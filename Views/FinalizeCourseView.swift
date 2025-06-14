@@ -6,6 +6,7 @@ struct FinalizeCourseView: View {
     
     @State var lessons: [LessonSuggestion]
     let topic: String
+    let onComplete: (Course) -> Void
     
     // Supports swipe-to-delete
     private func deleteLesson(at offsets: IndexSet) {
@@ -55,17 +56,6 @@ struct FinalizeCourseView: View {
                                 )
                                 .cornerRadius(16)
                         }
-
-                        // Remove Course button
-                        Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                            Text("Remove Course")
-                                .font(.headline).bold()
-                                .foregroundColor(.red)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color(white: 0.1))
-                                .cornerRadius(16)
-                        }
                     }
                     .padding()
                 }
@@ -84,31 +74,28 @@ struct FinalizeCourseView: View {
     }
     
     private func saveCourse() {
-        let newLessons = lessons.map {
+        let newLessons = lessons.map { suggestion in
             Lesson(
                 id: UUID(),
-                title: $0.title,
-                contentBlocks: [.text($0.description)],
+                title: suggestion.title,
+                contentBlocks: [.text(suggestion.description)],
                 quiz: [],
                 isUnlocked: true,
                 isComplete: false
             )
         }
-        
         let newCourse = Course(
             id: UUID(),
             title: topic,
             topic: topic,
-            difficulty: Difficulty.beginner,
-            pace: Pace.balanced,
-            creationMethod: CreationMethod.aiAssistant,
+            difficulty: .beginner,
+            pace: .balanced,
+            creationMethod: .aiAssistant,
             lessons: newLessons,
             createdAt: Date()
         )
-        
         stats.addCourse(newCourse)
-        presentationMode.wrappedValue.dismiss()
-        // TODO: Could add a notification or delegate call to pop the whole creation flow
+        onComplete(newCourse)
     }
 }
 
@@ -120,7 +107,8 @@ struct FinalizeCourseView_Previews: PreviewProvider {
                 .init(title: "Legendary Players & Defining Dynasties", description: "Covering icons like Bill Russell..."),
                 .init(title: "The Rules of the Game & Basic Strategy", description: "An essential primer...")
             ],
-            topic: "The History of the NBA"
+            topic: "The History of the NBA",
+            onComplete: { _ in }
         )
         .environmentObject(LearningStatsManager())
     }

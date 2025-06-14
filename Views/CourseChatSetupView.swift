@@ -18,6 +18,7 @@ struct CourseChatSetupView: View {
     @StateObject private var viewModel: CourseChatViewModel
     @State private var userInput: String = ""
     @State private var isFinalizing = false
+    @State private var generatedCourse: Course? = nil
     
     @AppStorage("hasSeenAIWalkthrough") var hasSeenAIWalkthrough: Bool = false
     @State private var showWalkthrough: Bool = false
@@ -87,8 +88,21 @@ struct CourseChatSetupView: View {
         .sheet(isPresented: $isFinalizing) {
             FinalizeCourseView(
                 lessons: viewModel.selectedLessons.sorted { $0.title < $1.title },
-                topic: viewModel.topic
+                topic: viewModel.topic,
+                onComplete: { course in
+                    // Close finalize sheet and show course map
+                    isFinalizing = false
+                    generatedCourse = course
+                }
             )
+        }
+        .fullScreenCover(item: $generatedCourse) { course in
+            LessonMapView(course: course)
+                .environmentObject(LearningStatsManager()) // or use same stats
+                .environmentObject(StreakManager())
+                .environmentObject(TrophyManager())
+                .environmentObject(NotificationsManager())
+                .environmentObject(UserPreferencesManager())
         }
         .onAppear {
             if !hasSeenAIWalkthrough {

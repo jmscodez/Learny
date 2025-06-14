@@ -56,6 +56,76 @@ struct OpenAIService {
         return suggestions
     }
     
+    /// Generates detailed content blocks for a specific lesson using the AI.
+    func generateLessonContent(for lessonTitle: String, topic: String) async -> [ContentBlock] {
+        let prompt = "You are an expert curriculum designer. Create a detailed lesson for a course on '" + topic + "'. The lesson title is '" + lessonTitle + "'. Generate a JSON array named 'blocks' where each item has a 'type' (text, dialogue, or matching) and the appropriate fields: \n- For 'text', a 'text' field with a paragraph summary.\n- For 'dialogue', a 'lines' array of objects with 'speaker' and 'message'.\n- For 'matching', a 'pairs' array with 'term' and 'definition'.\nReturn only the JSON object."        
+        var request = URLRequest(url: endpointURL)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "system", "content": "You are a JSON-only curriculum assistant."],
+                ["role": "user", "content": prompt]
+            ],
+            "response_format": ["type": "json_object"]
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            struct AIResponse: Decodable {
+                struct Choice: Decodable {
+                    struct Message: Decodable { let content: String }
+                    let message: Message
+                }
+                let choices: [Choice]
+            }
+            let aiResponse = try JSONDecoder().decode(AIResponse.self, from: data)
+            guard let contentString = aiResponse.choices.first?.message.content else {
+                print("Failed to get lesson content")
+                return []
+            }
+            // Decode the nested JSON
+            struct BlockPayload: Decodable {
+                let blocks: [RawBlock]
+            }
+            struct RawBlock: Decodable {
+                let type: String
+                let text: String?
+                let lines: [RawDialogueLine]?
+                let pairs: [MatchingPair]?
+            }
+            struct RawDialogueLine: Decodable {
+                let speaker: String
+                let text: String
+            }
+            let nested = Data(contentString.utf8)
+            let payloadData = try JSONDecoder().decode(BlockPayload.self, from: nested)
+            // Map RawBlock to ContentBlock
+            let blocks: [ContentBlock] = payloadData.blocks.map { raw in
+                switch raw.type {
+                case "text": return .text(raw.text ?? "")
+                case "dialogue":
+                    let dialogueLines = raw.lines?.map { DialogueLine(id: UUID(), speaker: $0.speaker, text: $0.text) }
+                    return .dialogue(dialogueLines ?? [])
+                case "matching":
+                    let matches = raw.pairs ?? []
+                    // generate a new game with a random id
+                    let game = MatchingGame(id: UUID(), pairs: matches)
+                    return .matching(game)
+                default: return .text("")
+                }
+            }
+            return blocks
+        } catch {
+            print("Error generating lesson content: \(error)")
+            return []
+        }
+    }
+    
     // MARK: - Private Helper
     
     private func generateSuggestions(with prompt: String) async -> [LessonSuggestion] {
