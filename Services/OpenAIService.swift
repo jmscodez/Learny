@@ -48,7 +48,7 @@ final class OpenAIService {
     static let shared = OpenAIService()
     private init() {}
     
-    private let apiKey = "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"
+    private let apiKey = "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"
     private let model = "meta-llama/llama-4-scout"
     private let endpointURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
 
@@ -161,7 +161,8 @@ final class OpenAIService {
     
     /// Generates detailed content blocks for a specific lesson using the AI.
     func generateLessonContent(for lessonTitle: String, topic: String) async -> [ContentBlock] {
-        let prompt = "You are an expert curriculum designer. Create a detailed lesson for a course on '" + topic + "'. The lesson title is '" + lessonTitle + "'. Generate a JSON array named 'blocks' where each item has a 'type' (text, dialogue, or matching) and the appropriate fields: \n- For 'text', a 'text' field with a paragraph summary.\n- For 'dialogue', a 'lines' array of objects with 'speaker' and 'message'.\n- For 'matching', a 'pairs' array with 'term' and 'definition'.\nReturn only the JSON object."        
+        let prompt = "You are an expert curriculum designer. Create a detailed lesson for a course on '\(topic)'. The lesson title is '\(lessonTitle)'. Your response MUST be a valid JSON object with a single key 'blocks'. The value of 'blocks' should be an array of content blocks. Each block is an object with a 'type' key ('text', 'dialogue', or 'matching') and associated content. \n- For 'text', include a 'text' field with a paragraph summary.\n- For 'dialogue', include a 'lines' array of objects, where each object has a 'speaker' and a 'message' key.\n- For 'matching', include a 'pairs' array of objects, where each object has a 'term' and 'definition' key.\nReturn ONLY the raw JSON object, with no other text or formatting."
+        
         var request = URLRequest(url: endpointURL)
         request.httpMethod = "POST"
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -190,9 +191,21 @@ final class OpenAIService {
             }
             let aiResponse = try JSONDecoder().decode(AIResponse.self, from: data)
             guard let contentString = aiResponse.choices.first?.message.content else {
-                print("Failed to get lesson content")
+                print("Failed to get lesson content string from AI response.")
                 return []
             }
+            
+            print("[AI RESPONSE CHECKER] Raw content string for lesson content:\n---\n\(contentString)\n---")
+
+
+            // Clean the string if it's wrapped in markdown
+            let cleanedContentString = contentString.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            print("[AI RESPONSE CHECKER] Cleaned content string for parsing: \(cleanedContentString)")
+
             // Decode the nested JSON
             struct BlockPayload: Decodable {
                 let blocks: [RawBlock]
@@ -201,24 +214,28 @@ final class OpenAIService {
                 let type: String
                 let text: String?
                 let lines: [RawDialogueLine]?
-                let pairs: [MatchingPair]?
+                let pairs: [RawMatchingPair]?
             }
             struct RawDialogueLine: Decodable {
                 let speaker: String
-                let text: String
+                let message: String
             }
-            let nested = Data(contentString.utf8)
+            struct RawMatchingPair: Decodable {
+                let term: String
+                let definition: String
+            }
+            
+            let nested = Data(cleanedContentString.utf8)
             let payloadData = try JSONDecoder().decode(BlockPayload.self, from: nested)
             // Map RawBlock to ContentBlock
             let blocks: [ContentBlock] = payloadData.blocks.map { raw in
                 switch raw.type {
                 case "text": return .text(raw.text ?? "")
                 case "dialogue":
-                    let dialogueLines = raw.lines?.map { DialogueLine(id: UUID(), speaker: $0.speaker, text: $0.text) }
+                    let dialogueLines = raw.lines?.map { DialogueLine(id: UUID(), speaker: $0.speaker, text: $0.message) }
                     return .dialogue(dialogueLines ?? [])
                 case "matching":
-                    let matches = raw.pairs ?? []
-                    // generate a new game with a random id
+                    let matches = raw.pairs?.map { MatchingPair(id: UUID(), term: $0.term, definition: $0.definition) } ?? []
                     let game = MatchingGame(id: UUID(), pairs: matches)
                     return .matching(game)
                 default: return .text("")

@@ -1,64 +1,82 @@
 import SwiftUI
 
 struct TopicInputView: View {
-    @EnvironmentObject var stats: LearningStatsManager
+    @EnvironmentObject private var generationManager: CourseGenerationManager
+    @EnvironmentObject private var navManager: NavigationManager
+    @EnvironmentObject private var statsManager: LearningStatsManager
+    @EnvironmentObject private var notesManager: NotificationsManager
+    
     @State private var topic: String = ""
     @State private var difficulty: Difficulty = .beginner
     @State private var pace: Pace = .balanced
-    @State private var showGuidedSetup = false // For the placeholder sheet
     @State private var showAIChat = false
 
+    private var difficultyDescription: String {
+        switch difficulty {
+        case .beginner: return "Great for new learners. Covers the basics."
+        case .intermediate: return "Assumes some prior knowledge."
+        case .advanced: return "For experts looking for a deep dive."
+        }
+    }
+    
+    private var paceDescription: String {
+        switch pace {
+        case .quickReview: return "A fast-paced overview of the key topics."
+        case .balanced: return "A steady, comprehensive learning experience."
+        case .deepDive: return "An in-depth, thorough exploration of the subject."
+        }
+    }
+    
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    Text("Create a New Course")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.top, 48)
-
-                    // Topic field
-                    TextField("", text: $topic, prompt: Text("e.g., The History of the NBA").foregroundColor(.gray))
-                        .padding()
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(12)
-                        .foregroundColor(.white)
-                        .padding(.bottom, 24)
-
-                    // Grouped Choosers
-                    VStack(spacing: 20) {
-                        OptionGroupView(title: "Choose Difficulty") {
-                            HStack(spacing: 12) {
-                                ForEach(Difficulty.allCases, id: \.self) { level in
-                                    DifficultyPill(title: level.rawValue.capitalized, isSelected: self.difficulty == level) {
-                                        self.difficulty = level
-                                    }
-                                }
-                            }
-                            Text(difficultyDescription)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .frame(height: 30, alignment: .top)
-                        }
+        NavigationStack(path: $navManager.path) {
+            ZStack {
+                Color.black.edgesIgnoringSafeArea(.all)
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        Text("Create a New Course")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.top, 48)
                         
-                        OptionGroupView(title: "Choose Pace") {
-                            HStack(spacing: 12) {
-                                ForEach(Pace.allCases, id: \.self) { level in
-                                    PacePill(title: level.displayName, isSelected: self.pace == level) {
-                                        self.pace = level
+                        TextField("", text: $topic, prompt: Text("e.g., The History of the NBA").foregroundColor(.gray))
+                            .padding()
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(12)
+                            .foregroundColor(.white)
+                            .padding(.bottom, 24)
+
+                        // Grouped Choosers
+                        VStack(spacing: 20) {
+                            OptionGroupView(title: "Choose Difficulty") {
+                                HStack(spacing: 12) {
+                                    ForEach(Difficulty.allCases, id: \.self) { level in
+                                        DifficultyPill(title: level.rawValue.capitalized, isSelected: self.difficulty == level) {
+                                            self.difficulty = level
+                                        }
                                     }
                                 }
+                                Text(difficultyDescription)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .frame(height: 30, alignment: .top)
                             }
-                            Text(paceDescription)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .frame(height: 30, alignment: .top)
+                            
+                            OptionGroupView(title: "Choose Pace") {
+                                HStack(spacing: 12) {
+                                    ForEach(Pace.allCases, id: \.self) { level in
+                                        PacePill(title: level.displayName, isSelected: self.pace == level) {
+                                            self.pace = level
+                                        }
+                                    }
+                                }
+                                Text(paceDescription)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .frame(height: 30, alignment: .top)
+                            }
                         }
-                    }
-                    
-                    // Action Buttons
-                    VStack(spacing: 16) {
+
                         Button(action: { showAIChat = true }) {
                             Label("Create with AI", systemImage: "sparkles")
                                 .font(.headline)
@@ -67,8 +85,9 @@ struct TopicInputView: View {
                                 .padding()
                                 .background(
                                     LinearGradient(
-                                        gradient: Gradient(colors: [Color.blue, Color.purple]),
-                                        startPoint: .leading, endPoint: .trailing
+                                        colors: [.blue, .purple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
                                     )
                                 )
                                 .cornerRadius(16)
@@ -76,82 +95,65 @@ struct TopicInputView: View {
                         .disabled(topic.trimmingCharacters(in: .whitespaces).isEmpty)
                         .opacity(topic.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1.0)
                         .fullScreenCover(isPresented: $showAIChat) {
-                            CourseChatSetupView(topic: topic)
-                        }
-                        
-                        HStack {
-                            line
-                            Text("OR")
-                                .foregroundColor(.gray)
-                            line
-                        }
-                        
-                        Button(action: { showGuidedSetup = true }) {
-                            Label("Guided Setup", systemImage: "wand.and.stars")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.teal.opacity(0.8))
-                                .cornerRadius(16)
-                        }
-                        .sheet(isPresented: $showGuidedSetup) {
-                            VStack {
-                                Text("Coming Soon!")
-                                    .font(.largeTitle)
-                                    .fontWeight(.bold)
-                                Text("The Guided Setup will provide a step-by-step wizard to build your course.")
-                                    .multilineTextAlignment(.center)
-                                    .padding()
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color(red: 0.1, green: 0.1, blue: 0.2))
+                            CourseChatSetupView(topic: topic, difficulty: difficulty, pace: pace, isPresented: $showAIChat)
                         }
                     }
-                    .padding(.top)
-
-                    Spacer(minLength: 48)
+                    .padding()
                 }
-                .padding(.horizontal, 24)
             }
-            .background(Color.black.edgesIgnoringSafeArea(.all))
+            .navigationTitle("Learn")
+            .navigationBarHidden(true)
+            .navigationDestination(for: Course.self) { course in
+                LessonMapView(course: course)
+            }
         }
-    }
-    
-    private var difficultyDescription: String {
-        switch difficulty {
-        case .beginner:
-            return "Assumes no prior knowledge. Perfect for starting out."
-        case .intermediate:
-            return "Builds on foundational concepts. For those with some experience."
-        case .advanced:
-            return "Dives into complex topics and nuances. For experts."
+        .onAppear(perform: notesManager.requestAuthorization)
+        .onChange(of: generationManager.generatedCourse) { newCourse in
+            if let course = newCourse {
+                navManager.path.append(course)
+                // The tab switch is no longer needed, navigation is handled directly.
+                // selectedTab = 1 
+            }
         }
-    }
-    
-    private var paceDescription: String {
-        switch pace {
-        case .quickReview:
-            return "A fast-paced overview focusing on key points."
-        case .balanced:
-            return "A standard pace covering concepts and details."
-        case .deepDive:
-            return "An in-depth exploration of the topic with extensive detail."
-        }
-    }
-
-    private var line: some View {
-        Rectangle()
-            .frame(height: 1)
-            .foregroundColor(.gray.opacity(0.4))
     }
 }
 
-struct OptionGroupView<Content: View>: View {
+// This view has been moved to MainView to be presented as a full-screen cover.
+/*
+private struct GeneratingView: View {
+    @EnvironmentObject var generationManager: CourseGenerationManager
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Generating Your Course...")
+                .font(.largeTitle).bold()
+                .multilineTextAlignment(.center)
+            
+            SwiftUI.ProgressView(value: generationManager.generationProgress)
+                .progressViewStyle(LinearProgressViewStyle(tint: .purple))
+                .padding(.horizontal)
+                .shadow(color: .purple.opacity(0.4), radius: 5)
+            
+            Text(generationManager.statusMessage)
+                .font(.headline)
+                .foregroundColor(.gray)
+            
+            Spacer().frame(height: 20)
+            
+            Button("Cancel", role: .destructive, action: generationManager.cancelGeneration)
+                .buttonStyle(.bordered)
+                .tint(.red)
+        }
+        .padding()
+        .foregroundColor(.white)
+    }
+}
+*/
+
+private struct OptionGroupView<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
@@ -218,9 +220,13 @@ private struct PacePill: View {
 }
 
 struct TopicInputView_Previews: PreviewProvider {
+    @State static var tab = 0
     static var previews: some View {
         TopicInputView()
+            .environmentObject(CourseGenerationManager())
+            .environmentObject(NavigationManager())
             .environmentObject(LearningStatsManager())
+            .environmentObject(NotificationsManager())
             .preferredColorScheme(.dark)
     }
 }

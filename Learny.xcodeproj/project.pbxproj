@@ -29,26 +29,6 @@
 		CF45E4712DF9D2FC00049449 /* LearnyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LearnyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		CF45E4BD2DF9D3B600049449 /* Exceptions for "Views" folder in "Learny" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				MainView.swift,
-			);
-			target = CF45E4592DF9D2FB00049449 /* Learny */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		CF45E4BE2DF9D3B600049449 /* Exceptions for "Views" folder in "Copy Bundle Resources" phase from "Learny" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = CF45E4582DF9D2FB00049449 /* Resources */;
-			membershipExceptions = (
-				MainView.swift,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CF45E45C2DF9D2FB00049449 /* Learny */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -87,10 +67,6 @@
 		};
 		CF45E4BA2DF9D3AD00049449 /* Views */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				CF45E4BD2DF9D3B600049449 /* Exceptions for "Views" folder in "Learny" target */,
-				CF45E4BE2DF9D3B600049449 /* Exceptions for "Views" folder in "Copy Bundle Resources" phase from "Learny" target */,
-			);
 			path = Views;
 			sourceTree = "<group>";
 		};

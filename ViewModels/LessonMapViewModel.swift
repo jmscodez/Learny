@@ -29,32 +29,39 @@ class LessonMapViewModel: ObservableObject {
         }
     }
     
-    /// Generates detailed content blocks for each lesson in the background, logging progress.
+    /// Generates detailed content blocks for each lesson in the background if they don't already exist.
     func generateLessonContent() {
+        // Only generate content if there's at least one lesson that needs it.
+        let needsGeneration = lessons.contains { $0.contentBlocks.isEmpty }
+        guard needsGeneration else {
+            print("[CourseGen] All lessons have content. Skipping generation.")
+            return
+        }
+        
         isGeneratingContent = true
         Task {
             let total = lessons.count
-            // Generate first two lessons in order
-            for idx in 0..<min(2, total) {
-                let title = lessons[idx].title
-                print("[CourseGen] Generating content for lesson \(idx+1)/\(total): \(title)")
-                let blocks = await OpenAIService.shared.generateLessonContent(for: title, topic: course.topic)
-                lessons[idx].contentBlocks = blocks
-                print("[CourseGen] Completed generation for lesson \(idx+1)/\(total): \(title)")
-            }
-            // Generate the rest in background tasks
-            await withTaskGroup(of: Void.self) { group in
-                for idx in 2..<total {
-                    let title = lessons[idx].title
+            // Using a task group to generate content for all empty lessons concurrently.
+            await withTaskGroup(of: (Int, [ContentBlock]).self) { group in
+                for (index, lesson) in lessons.enumerated() {
+                    // Only generate if content is missing.
+                    guard lesson.contentBlocks.isEmpty else { continue }
+                    
+                    let title = lesson.title
                     let topic = course.topic
+                    
                     group.addTask {
-                        print("[CourseGen] (BG) Generating content for lesson \(idx+1)/\(total): \(title)")
+                        print("[CourseGen] Generating content for lesson \(index + 1)/\(total): \(title)")
                         let blocks = await OpenAIService.shared.generateLessonContent(for: title, topic: topic)
-                        await MainActor.run { [weak self] in
-                            guard let self = self else { return }
-                            self.lessons[idx].contentBlocks = blocks
-                        }
-                        print("[CourseGen] (BG) Completed generation for lesson \(idx+1)/\(total): \(title)")
+                        print("[CourseGen] Completed generation for lesson \(index + 1)/\(total): \(title)")
+                        return (index, blocks)
+                    }
+                }
+                
+                // As tasks finish, update the lessons on the main thread.
+                for await (index, blocks) in group {
+                    if lessons.indices.contains(index) {
+                        lessons[index].contentBlocks = blocks
                     }
                 }
             }

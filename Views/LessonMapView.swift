@@ -20,119 +20,228 @@ struct CustomProgressBar: View {
 }
 
 struct LessonMapView: View {
+    @EnvironmentObject var streaks: StreakManager
     @StateObject private var viewModel: LessonMapViewModel
-    @State private var showCourseOverview = false
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var showCourseDetails = false
+    
+    // Define a more reasonable spacing for each node
+    private let nodeVerticalSpacing: CGFloat = 180.0
+    private let pathWidth: CGFloat = 300
+
+    // Calculate total height based on lesson count
+    private var totalPathHeight: CGFloat {
+        // Add extra padding at the top and bottom
+        return CGFloat(viewModel.lessons.count) * nodeVerticalSpacing + 100
+    }
 
     init(course: Course) {
         _viewModel = StateObject(wrappedValue: LessonMapViewModel(course: course))
     }
 
     var body: some View {
-        let completedCount = viewModel.lessons.filter { $0.isComplete }.count
-        let totalCount = viewModel.lessons.count
-        let percent = totalCount > 0 ? Double(completedCount) / Double(totalCount) : 0
-        let xp = completedCount * 10
-        let timeline = Array(zip(viewModel.lessons.indices, viewModel.lessons))
+        ZStack {
+            // Placeholder for a dynamic, themed background
+            LinearGradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.1), .black], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
 
-        NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-
-                // Loading overlay
-                if viewModel.isGeneratingContent {
-                    Color.black.opacity(0.6).ignoresSafeArea()
-                    VStack(spacing: 16) {
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        Text("Generating course content...")
-                            .foregroundColor(.white)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Loading overlay
+            if viewModel.isGeneratingContent {
+                VStack(spacing: 16) {
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    Text("Generating lesson content...")
+                        .foregroundColor(.white)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.7))
+                .zIndex(2) // Ensure it's on top
+            }
 
+            VStack(spacing: 0) {
+                // New, cleaner header
+                NewHeaderView(
+                    title: viewModel.course.title,
+                    lessons: viewModel.lessons,
+                    onBackTapped: { dismiss() },
+                    onInfoTapped: { showCourseDetails = true }
+                )
+                
                 ScrollView {
-                    VStack(spacing: 24) {
-                        // Progress Header
-                        VStack(spacing: 12) {
-                            // Custom linear progress bar
-                            CustomProgressBar(progress: percent)
-
-                            HStack {
-                                Text("\(Int(percent * 100))% Complete")
-                                Spacer()
-                                Text("\(xp) XP Earned")
-                            }
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-
-                            Button(action: { showCourseOverview = true }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "info.circle")
-                                    Text("View Course Details")
-                                }
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(.cyan)
-                            }
-                        }
-                        .padding(.horizontal)
+                    ZStack {
+                        CoursePathView(
+                            pathHeight: totalPathHeight,
+                            pathWidth: pathWidth
+                        )
+                        .frame(height: totalPathHeight)
                         
-                        // Timeline
-                        VStack(spacing: 40) {
-                            ForEach(timeline, id: \.0) { idx, _ in
-                                let lesson = viewModel.lessons[idx]
-                                VStack(spacing: 0) {
-                                    // Node
-                                    NavigationLink(destination: LessonDetailView(lesson: lesson)
-                                        .environmentObject(viewModel)) {
-                                        LessonNodeView(lesson: lesson)
-                                            .frame(maxWidth: .infinity, alignment: .center)
-                                    }
-                                    .disabled(!lesson.isUnlocked)
-
-                                    // Connector
-                                    if idx < totalCount - 1 {
-                                        // Dashed line
-                                        Rectangle()
-                                            .frame(width: 2, height: 40)
-                                            .foregroundColor(.clear)
-                                            .overlay(
-                                                Rectangle()
-                                                    .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                                                    .foregroundColor(.cyan)
-                                            )
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.vertical, 30)
+                        NodesView(
+                            lessons: viewModel.lessons,
+                            pathWidth: pathWidth,
+                            viewModel: viewModel,
+                            nodeVerticalSpacing: nodeVerticalSpacing
+                        )
+                        .frame(height: totalPathHeight)
                     }
                 }
-                .background(Color.black)
-            }
-            .navigationTitle(viewModel.course.title)
-            .navigationBarTitleDisplayMode(.large)
-            .sheet(isPresented: $showCourseOverview) {
-                CourseOverviewView(course: viewModel.course)
-            }
-            .onAppear {
-                viewModel.generateLessonContent()
             }
         }
-        .accentColor(.white)
+        .navigationBarHidden(true) // Hiding the default nav bar
+        .sheet(isPresented: $showCourseDetails) {
+            CourseDetailSheetView(course: viewModel.course)
+        }
+        .onAppear {
+            viewModel.generateLessonContent()
+        }
     }
 }
 
+// MARK: - Subviews
+private struct NewHeaderView: View {
+    let title: String
+    let lessons: [Lesson]
+    let onBackTapped: () -> Void
+    let onInfoTapped: () -> Void
+    
+    private var progress: Double {
+        guard !lessons.isEmpty else { return 0 }
+        return Double(lessons.filter(\.isComplete).count) / Double(lessons.count)
+    }
+    
+    private var xp: Int {
+        lessons.filter(\.isComplete).count * 10
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Top navigation
+            HStack {
+                Button(action: onBackTapped) {
+                    Label("Back", systemImage: "chevron.left")
+                }
+                .foregroundColor(.white)
+                Spacer()
+            }
+            
+            // Title and progress
+            Text(title)
+                .font(.largeTitle).bold()
+                .foregroundColor(.white)
+            
+            HStack {
+                Text("\(Int(progress * 100))% Complete")
+                Spacer()
+                Text("\(xp) XP Earned")
+            }
+            .font(.subheadline)
+            .foregroundColor(.gray)
+            
+            // Details Button
+            Button(action: onInfoTapped) {
+                HStack {
+                    Image(systemName: "info.circle")
+                    Text("View Course Details")
+                }
+                .font(.headline)
+                .foregroundColor(.cyan)
+            }
+        }
+        .padding()
+        .background(Color.black.opacity(0.3))
+    }
+}
+
+private struct CoursePathView: View {
+    let pathHeight: CGFloat
+    let pathWidth: CGFloat
+
+    var body: some View {
+        WindingPath()
+            .stroke(
+                LinearGradient(
+                    colors: [.cyan.opacity(0.8), .purple.opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                style: StrokeStyle(lineWidth: 6, lineCap: .round, dash: [20, 15])
+            )
+    }
+}
+
+private struct NodesView: View {
+    let lessons: [Lesson]
+    let pathWidth: CGFloat
+    @ObservedObject var viewModel: LessonMapViewModel
+    let nodeVerticalSpacing: CGFloat
+    
+    var body: some View {
+        let totalNodes = lessons.count
+        
+        ForEach(lessons.indices, id: \.self) { index in
+            let lesson = lessons[index]
+            // Calculate y position based on index and spacing
+            let yPos = (CGFloat(index) * nodeVerticalSpacing) + (nodeVerticalSpacing / 2)
+            // Use a normalized value (0 to 1) for the sine wave calculation
+            let normalizedY = CGFloat(index) / CGFloat(max(1, totalNodes - 1))
+            let xOffset = WindingPath.xOffset(for: normalizedY, pathWidth: pathWidth)
+
+            // Determine the alignment based on the curve's position
+            let alignment: HorizontalAlignment = (xOffset < 0) ? .leading : .trailing
+
+            NavigationLink(destination: LessonDetailView(lesson: lesson).environmentObject(viewModel)) {
+                LessonNodeView(lesson: lesson, alignment: alignment)
+            }
+            .disabled(!lesson.isUnlocked)
+            .position(
+                x: (UIScreen.main.bounds.width / 2) + xOffset,
+                y: yPos
+            )
+        }
+    }
+}
+
+
+// MARK: - Custom Path Shape
+private struct WindingPath: Shape {
+    static func xOffset(for y: CGFloat, pathWidth: CGFloat) -> CGFloat {
+        let frequency: CGFloat = 4.0
+        let amplitude = pathWidth / 2
+        return sin(y * .pi * frequency) * amplitude
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let steps = 100
+        
+        for i in 0...steps {
+            let y = CGFloat(i) / CGFloat(steps) * rect.height
+            let x = rect.midX + Self.xOffset(for: CGFloat(i) / CGFloat(steps), pathWidth: rect.width)
+            
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+        
+        return path
+    }
+}
+
+// MARK: - Previews
 struct LessonMapView_Previews: PreviewProvider {
     static var previews: some View {
-        // Creating a sample course with a few lessons for the preview
         let sampleLessons = [
-            Lesson(id: UUID(), title: "Introduction", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: true),
-            Lesson(id: UUID(), title: "Chapter 1", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false),
-            Lesson(id: UUID(), title: "Chapter 2", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false)
+            Lesson(id: UUID(), title: "The Spark: Assassination and Alliances", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: true),
+            Lesson(id: UUID(), title: "Life in the Trenches: A New Kind of War", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false),
+            Lesson(id: UUID(), title: "The War's Global Reach", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false),
+            Lesson(id: UUID(), title: "America Enters the Fray", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false),
+            Lesson(id: UUID(), title: "The Treaty of Versailles and Its Legacy", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false)
         ]
         let sampleCourse = Course(
             id: UUID(),
-            title: "History of Jazz",
-            topic: "History of Jazz",
+            title: "The Great War: A Deep Dive into WWI",
+            topic: "World War I",
             difficulty: .beginner,
             pace: .balanced,
             creationMethod: .aiAssistant,
@@ -140,6 +249,10 @@ struct LessonMapView_Previews: PreviewProvider {
             createdAt: Date()
         )
         
-        LessonMapView(course: sampleCourse)
+        return NavigationView {
+            LessonMapView(course: sampleCourse)
+                .environmentObject(StreakManager())
+                .preferredColorScheme(.dark)
+        }
     }
 }

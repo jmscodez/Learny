@@ -7,7 +7,9 @@ struct LearnyApp: App {
     @StateObject private var trophies = TrophyManager()
     @StateObject private var notes    = NotificationsManager()
     @StateObject private var prefs    = UserPreferencesManager()
-
+    @StateObject private var nav      = NavigationManager()
+    @StateObject private var generator = CourseGenerationManager()
+    
     init() {
         // --- Tab Bar Appearance ---
         let appearance = UITabBarAppearance()
@@ -38,6 +40,8 @@ struct LearnyApp: App {
                 .environmentObject(trophies)
                 .environmentObject(notes)
                 .environmentObject(prefs)
+                .environmentObject(nav)
+                .environmentObject(generator)
         }
     }
 }

@@ -6,9 +6,15 @@ final class CourseChatViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var lessonSuggestions: [LessonSuggestion] = []
     @Published var swappingLessonID: UUID? = nil
+    @Published var userInput: String = ""
     
     // Controls the visibility of the interactive elements
     @Published var canShowSuggestions = false
+    
+    // Course parameters
+    let topic: String
+    let difficulty: Difficulty
+    let pace: Pace
     
     // Computed property to drive the "Current Lessons" dropdown
     var selectedLessons: [LessonSuggestion] {
@@ -22,10 +28,10 @@ final class CourseChatViewModel: ObservableObject {
     
     private let aiService = OpenAIService.shared
     
-    let topic: String
-    
-    init(topic: String) {
+    init(topic: String, difficulty: Difficulty, pace: Pace) {
         self.topic = topic
+        self.difficulty = difficulty
+        self.pace = pace
         setupInitialConversation()
     }
     
@@ -33,7 +39,7 @@ final class CourseChatViewModel: ObservableObject {
         // The AI's opening messages.
         messages.append(ChatMessage(
             role: .assistant,
-            content: .text("Welcome to your \(topic) learning journey! To start, about how many lessons should we create for your course?")
+            content: .text("Welcome! To start, about how many lessons should we create for your course on \(topic)?")
         ))
         
         messages.append(ChatMessage(
@@ -105,8 +111,11 @@ final class CourseChatViewModel: ObservableObject {
     }
     
     /// Handles user text input, adding a new lesson.
-    func addUserMessage(_ text: String) {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    func addUserMessage() {
+        guard !userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let text = userInput
+        userInput = "" // Clear the input field immediately
+        
         messages.append(ChatMessage(role: .user, content: .text(text)))
 
         Task {

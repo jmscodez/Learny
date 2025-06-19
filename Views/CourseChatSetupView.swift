@@ -16,18 +16,17 @@ extension ChatMessage.ContentType {
 
 struct CourseChatSetupView: View {
     @StateObject private var viewModel: CourseChatViewModel
-    @State private var userInput: String = ""
     @State private var isFinalizing = false
-    @State private var generatedCourse: Course? = nil
     
-    @AppStorage("hasSeenAIWalkthrough") var hasSeenAIWalkthrough: Bool = false
-    @State private var showWalkthrough: Bool = false
+    // Controls the presentation of this modal view
+    @Binding var isPresented: Bool
     
     // Holds the suggestion for the info sheet
     @State private var suggestionForDetail: LessonSuggestion?
     
-    init(topic: String) {
-        _viewModel = StateObject(wrappedValue: CourseChatViewModel(topic: topic))
+    init(topic: String, difficulty: Difficulty, pace: Pace, isPresented: Binding<Bool>) {
+        _viewModel = StateObject(wrappedValue: CourseChatViewModel(topic: topic, difficulty: difficulty, pace: pace))
+        self._isPresented = isPresented
     }
     
     var body: some View {
@@ -42,6 +41,9 @@ struct CourseChatSetupView: View {
                                 isFinalizing = true
                             }
                         }
+                    },
+                    onCancel: {
+                        isPresented = false
                     }
                 )
                 
@@ -90,22 +92,24 @@ struct CourseChatSetupView: View {
                     }
                 }
                 
-                InputBarView(userInput: $userInput) {
-                    viewModel.addUserMessage(userInput)
-                    userInput = ""
+                InputBarView(userInput: $viewModel.userInput) {
+                    viewModel.addUserMessage()
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationBarHidden(true)
         .sheet(isPresented: $isFinalizing) {
             FinalizeCourseView(
                 lessons: viewModel.selectedLessons.sorted { $0.title < $1.title },
                 topic: viewModel.topic,
-                onComplete: { course in
-                    // Close finalize sheet and show course map
+                difficulty: viewModel.difficulty,
+                pace: viewModel.pace,
+                onCancel: {
                     isFinalizing = false
-                    generatedCourse = course
+                },
+                onGenerate: {
+                    isFinalizing = false
+                    isPresented = false // Dismiss the whole chat flow
                 }
             )
         }
@@ -114,44 +118,20 @@ struct CourseChatSetupView: View {
                 LessonChatView(lesson: suggestion)
             }
         }
-        .fullScreenCover(item: $generatedCourse) { course in
-            LessonMapView(course: course)
-                .environmentObject(LearningStatsManager()) // or use same stats
-                .environmentObject(StreakManager())
-                .environmentObject(TrophyManager())
-                .environmentObject(NotificationsManager())
-                .environmentObject(UserPreferencesManager())
-        }
-        .onAppear {
-            if !hasSeenAIWalkthrough {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation {
-                        showWalkthrough = true
-                    }
-                }
-            }
-        }
-        .overlay(
-            VStack {
-                if showWalkthrough {
-                    AIWalkthroughView(isPresented: $showWalkthrough)
-                }
-            }
-        )
     }
     
     
     // MARK: - Subviews
     private struct HeaderView: View {
-        @Environment(\.presentationMode) var presentationMode
         let selectedCount: Int
         let onGenerate: () -> Void
+        let onCancel: () -> Void
         
         private var canGenerate: Bool { selectedCount > 0 }
         
         var body: some View {
             HStack {
-                Button(action: { presentationMode.wrappedValue.dismiss() }) {
+                Button(action: onCancel) {
                     Image(systemName: "xmark").font(.headline)
                 }
                 Spacer()
@@ -607,9 +587,15 @@ struct CourseChatSetupView: View {
     
     // MARK: - Previews
     struct CourseChatSetupView_Previews: PreviewProvider {
+        @State static var isPresented = true
         static var previews: some View {
-            CourseChatSetupView(topic: "The History of Rome")
-                .preferredColorScheme(.dark)
+            CourseChatSetupView(
+                topic: "The History of Rome",
+                difficulty: .beginner,
+                pace: .balanced,
+                isPresented: $isPresented
+            )
+            .preferredColorScheme(.dark)
         }
     }
 }

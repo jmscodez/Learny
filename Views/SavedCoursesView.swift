@@ -2,72 +2,72 @@ import SwiftUI
 
 struct SavedCoursesView: View {
     @EnvironmentObject private var stats: LearningStatsManager
+    @EnvironmentObject private var navManager: NavigationManager
     
-    // State for multi-selection
+    @State private var path = NavigationPath()
     @State private var isSelecting = false
     @State private var selectedCourseIDs = Set<UUID>()
 
     var body: some View {
-        ZStack {
-            Color.black.edgesIgnoringSafeArea(.all)
+        NavigationStack(path: $path) {
+            ZStack {
+                Color.black.edgesIgnoringSafeArea(.all)
 
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Text("My Courses")
-                        .font(.largeTitle).bold()
-                        .foregroundColor(.white)
-                    Spacer()
-                    
-                    Button(isSelecting ? "Cancel" : "Select") {
-                        isSelecting.toggle()
-                        // Clear selection when exiting selection mode
-                        if !isSelecting {
-                            selectedCourseIDs.removeAll()
-                        }
-                    }
-                        .foregroundColor(.cyan)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 48)
-                .padding(.bottom, 12)
-
-                if stats.courses.isEmpty {
-                    EmptyStateView()
-                } else {
-                    List {
-                        ForEach(stats.courses) { course in
-                            CourseRow(
-                                course: course,
-                                isSelected: selectedCourseIDs.contains(course.id),
-                                isSelecting: isSelecting
-                            )
-                            .onTapGesture {
-                                if isSelecting {
-                                    toggleSelection(for: course)
+                VStack(spacing: 0) {
+                    // Header is now inside the scroll view or list
+                    if stats.courses.isEmpty {
+                        EmptyStateView()
+                    } else {
+                        List {
+                            // The header is moved here to scroll with the content
+                            Section {
+                                ForEach(stats.courses) { course in
+                                    CourseRow(
+                                        course: course,
+                                        isSelected: selectedCourseIDs.contains(course.id),
+                                        isSelecting: isSelecting
+                                    )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        if isSelecting {
+                                            toggleSelection(for: course)
+                                        } else {
+                                            path.append(course)
+                                        }
+                                    }
                                 }
+                                .onDelete { indexSet in
+                                    if !isSelecting {
+                                        stats.deleteCourses(at: indexSet)
+                                    }
+                                }
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 24, bottom: 8, trailing: 24))
+                                .listRowBackground(Color.black)
+                            } header: {
+                                HeaderView(isSelecting: $isSelecting, onToggleSelection: {
+                                    isSelecting.toggle()
+                                    if !isSelecting {
+                                        selectedCourseIDs.removeAll()
+                                    }
+                                })
                             }
                         }
-                        .onDelete { indexSet in
-                            // Standard swipe-to-delete, disabled in selection mode
-                            if !isSelecting {
-                            stats.deleteCourses(at: indexSet)
-                            }
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 24, bottom: 8, trailing: 24))
-                        .listRowBackground(Color.black)
+                        .listStyle(.plain)
                     }
-                    .listStyle(.plain)
+                    
+                    if isSelecting {
+                        deleteButton
+                            .padding(.horizontal, 24)
+                            .padding(.vertical)
+                    }
                 }
-                
-                // "Delete Selected" button appears when selecting
-                if isSelecting {
-                    deleteButton
-                        .padding(.horizontal, 24)
-                        .padding(.vertical)
             }
-        }
+            .navigationTitle("My Courses")
+            .navigationBarHidden(true) // We use a custom header
+            .navigationDestination(for: Course.self) { course in
+                LessonMapView(course: course)
+            }
         }
     }
     
@@ -109,6 +109,27 @@ struct SavedCoursesView: View {
     }
 }
 
+// Custom Header View
+private struct HeaderView: View {
+    @Binding var isSelecting: Bool
+    let onToggleSelection: () -> Void
+    
+    var body: some View {
+        HStack {
+            Text("My Courses")
+                .font(.largeTitle).bold()
+                .foregroundColor(.white)
+            Spacer()
+            
+            Button(isSelecting ? "Cancel" : "Select", action: onToggleSelection)
+                .foregroundColor(.cyan)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 48)
+        .padding(.bottom, 12)
+    }
+}
+
 // The new Empty State View, extracted for clarity
 private struct EmptyStateView: View {
     var body: some View {
@@ -141,26 +162,16 @@ private struct CourseRow: View {
     let isSelecting: Bool
     
     var body: some View {
-        ZStack {
-            // The NavigationLink is in the background, making the whole row tappable
-            // without showing a disclosure arrow (">"). It's disabled during selection.
-            NavigationLink(destination: LessonMapView(course: course)) {
-                EmptyView()
+        HStack(spacing: 12) {
+            // Checkmark appears during selection mode
+            if isSelecting {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundColor(isSelected ? .blue : .gray)
+                    .animation(.easeInOut(duration: 0.2), value: isSelected)
             }
-            .opacity(0)
-            .disabled(isSelecting)
             
-            HStack(spacing: 12) {
-                // Checkmark appears during selection mode
-                if isSelecting {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundColor(isSelected ? .blue : .gray)
-                        .animation(.easeInOut(duration: 0.2), value: isSelected)
-                }
-                
-                CourseCard(course: course)
-            }
+            CourseCard(course: course)
         }
     }
 }
@@ -206,6 +217,7 @@ private struct CourseCard: View {
                     .foregroundColor(.white)
         }
         .padding()
+        .padding(.vertical, 8) // Make the pill taller
         .background(Color(white: 0.15))
         .cornerRadius(16)
     }
@@ -222,6 +234,7 @@ struct SavedCoursesView_Previews: PreviewProvider {
         
         return SavedCoursesView()
             .environmentObject(manager)
+            .environmentObject(NavigationManager())
             .preferredColorScheme(.dark)
     }
 }

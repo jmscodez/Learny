@@ -30,17 +30,25 @@ private struct GlowingButton: View {
 }
 
 struct FinalizeCourseView: View {
-    @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var stats: LearningStatsManager
+    @EnvironmentObject private var generationManager: CourseGenerationManager
+    @EnvironmentObject private var statsManager: LearningStatsManager
+    @EnvironmentObject private var notesManager: NotificationsManager
     
     @State var lessons: [LessonSuggestion]
     let topic: String
-    let onComplete: (Course) -> Void
+    let difficulty: Difficulty
+    let pace: Pace
     
-    init(lessons: [LessonSuggestion], topic: String, onComplete: @escaping (Course) -> Void) {
+    let onCancel: () -> Void
+    let onGenerate: () -> Void
+    
+    init(lessons: [LessonSuggestion], topic: String, difficulty: Difficulty, pace: Pace, onCancel: @escaping () -> Void, onGenerate: @escaping () -> Void) {
         self._lessons = State(initialValue: lessons)
         self.topic = topic
-        self.onComplete = onComplete
+        self.difficulty = difficulty
+        self.pace = pace
+        self.onCancel = onCancel
+        self.onGenerate = onGenerate
 
         // Customize Navigation Bar Appearance to be consistently black with a cyan title
         let appearance = UINavigationBarAppearance()
@@ -75,7 +83,7 @@ struct FinalizeCourseView: View {
                     }
 
                     VStack(spacing: 12) {
-                        GlowingButton(text: "Generate Course", action: saveCourse)
+                        GlowingButton(text: "Generate Course", action: startGeneration)
                     }
                     .padding(.horizontal)
                     .padding(.bottom)
@@ -85,35 +93,22 @@ struct FinalizeCourseView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { presentationMode.wrappedValue.dismiss() }
+                    Button("Cancel", action: onCancel)
                 }
             }
         }
     }
     
-    private func saveCourse() {
-        let newLessons = lessons.map { suggestion in
-            Lesson(
-                id: UUID(),
-                title: suggestion.title,
-                contentBlocks: [.text(suggestion.description)],
-                quiz: [],
-                isUnlocked: true,
-                isComplete: false
-            )
-        }
-        let newCourse = Course(
-            id: UUID(),
-            title: topic,
+    private func startGeneration() {
+        generationManager.generateCourse(
             topic: topic,
-            difficulty: .beginner,
-            pace: .balanced,
-            creationMethod: .aiAssistant,
-            lessons: newLessons,
-            createdAt: Date()
+            suggestions: lessons,
+            difficulty: difficulty,
+            pace: pace,
+            statsManager: statsManager,
+            notificationsManager: notesManager
         )
-        stats.addCourse(newCourse)
-        onComplete(newCourse)
+        onGenerate()
     }
 }
 
@@ -163,8 +158,13 @@ struct FinalizeCourseView_Previews: PreviewProvider {
                 .init(title: "The Rules of the Game & Basic Strategy", description: "An essential primer...")
             ],
             topic: "The History of the NBA",
-            onComplete: { _ in }
+            difficulty: .beginner,
+            pace: .balanced,
+            onCancel: {},
+            onGenerate: {}
         )
+        .environmentObject(CourseGenerationManager())
         .environmentObject(LearningStatsManager())
+        .environmentObject(NotificationsManager())
     }
 } 
