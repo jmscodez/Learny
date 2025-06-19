@@ -5,6 +5,7 @@ import SwiftUI
 final class CourseChatViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var lessonSuggestions: [LessonSuggestion] = []
+    @Published var swappingLessonID: UUID? = nil
     
     // Controls the visibility of the interactive elements
     @Published var canShowSuggestions = false
@@ -65,10 +66,20 @@ final class CourseChatViewModel: ObservableObject {
             // Give the user a moment to read before showing the loader
             try? await Task.sleep(nanoseconds: 1_500_000_000)
 
-            let loadingMessage = ChatMessage(role: .assistant, content: .descriptiveLoading("Generating your first \(target) lesson ideas..."))
-            messages.append(loadingMessage)
-            
-            let initialSuggestions = await aiService.generateInitialLessonIdeas(for: topic, count: target)
+            await generateAndDisplayInitialSuggestions(count: target)
+        }
+    }
+    
+    /// A reusable function to generate and display the first batch of suggestions.
+    /// Also used by the "Retry" button.
+    func generateAndDisplayInitialSuggestions(count: Int = 7) async {
+        // Clear any previous error messages
+        messages.removeAll { if case .aiError = $0.content { return true }; return false }
+        
+        let loadingMessage = ChatMessage(role: .assistant, content: .descriptiveLoading("Generating your first \(count) lesson ideas..."))
+        messages.append(loadingMessage)
+        
+        if let initialSuggestions = await aiService.generateInitialLessonIdeas(for: topic, count: count) {
             messages.removeAll { $0.id == loadingMessage.id }
             
             self.lessonSuggestions = initialSuggestions
@@ -79,6 +90,11 @@ final class CourseChatViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 500_000_000)
             messages.append(ChatMessage(role: .assistant, content: .finalPrompt))
             messages.append(ChatMessage(role: .assistant, content: .generateMoreIdeasButton))
+        } else {
+            // Handle generation failure
+            messages.removeAll { $0.id == loadingMessage.id }
+            let errorMessage = "Sorry, I couldn't generate lesson ideas for '\(topic)' right now. Please check your connection or try again."
+            messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
         }
     }
     
@@ -119,17 +135,22 @@ final class CourseChatViewModel: ObservableObject {
             messages.append(loadingMessage)
             
             let fullQuery = "\(originalQuery) with a focus on \(response)"
-            let followUpSuggestions = await aiService.generateFollowUpLessonIdeas(basedOn: fullQuery, topic: topic, existingLessons: lessonSuggestions)
-            messages.removeAll { $0.id == loadingMessage.id }
-            
-            // Add new suggestions to the main list
-            self.lessonSuggestions.append(contentsOf: followUpSuggestions)
-            let suggestionIDs = followUpSuggestions.map { $0.id }
-            
-            let responseText = "Perfect. Based on your interest in '\(response)', here are a few lesson ideas I've come up with:"
-            messages.append(ChatMessage(role: .assistant, content: .text(responseText)))
-            
-            messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(suggestionIDs)))
+            if let followUpSuggestions = await aiService.generateFollowUpLessonIdeas(basedOn: fullQuery, topic: topic, existingLessons: lessonSuggestions) {
+                messages.removeAll { $0.id == loadingMessage.id }
+                
+                // Add new suggestions to the main list
+                self.lessonSuggestions.append(contentsOf: followUpSuggestions)
+                let suggestionIDs = followUpSuggestions.map { $0.id }
+                
+                let responseText = "Perfect. Based on your interest in '\(response)', here are a few lesson ideas I've come up with:"
+                messages.append(ChatMessage(role: .assistant, content: .text(responseText)))
+                
+                messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(suggestionIDs)))
+            } else {
+                messages.removeAll { $0.id == loadingMessage.id }
+                let errorMessage = "Sorry, I couldn't generate ideas for that. Could you try rephrasing?"
+                messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+            }
         }
     }
     
@@ -140,21 +161,46 @@ final class CourseChatViewModel: ObservableObject {
             let loadingMessage = ChatMessage(role: .assistant, content: .descriptiveLoading("Generating a few more suggestions..."))
             messages.append(loadingMessage)
 
-            let newSuggestions = await aiService.generateInitialLessonIdeas(for: topic, count: 3) // Generate a smaller batch
-            messages.removeAll { $0.id == loadingMessage.id }
+            if let newSuggestions = await aiService.generateInitialLessonIdeas(for: topic, count: 3) { // Generate a smaller batch
+                messages.removeAll { $0.id == loadingMessage.id }
 
-            self.lessonSuggestions.append(contentsOf: newSuggestions)
-            let suggestionIDs = newSuggestions.map { $0.id }
+                self.lessonSuggestions.append(contentsOf: newSuggestions)
+                let suggestionIDs = newSuggestions.map { $0.id }
 
-            let responseText = "Of course! Here are a few more ideas:"
-            messages.append(ChatMessage(role: .assistant, content: .text(responseText)))
+                let responseText = "Of course! Here are a few more ideas:"
+                messages.append(ChatMessage(role: .assistant, content: .text(responseText)))
+                
+                messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(suggestionIDs)))
+                
+                // Ensure we only have one final prompt at a time
+                messages.removeAll { $0.content == .finalPrompt }
+                messages.append(ChatMessage(role: .assistant, content: .finalPrompt))
+                messages.append(ChatMessage(role: .assistant, content: .generateMoreIdeasButton))
+            } else {
+                messages.removeAll { $0.id == loadingMessage.id }
+                let errorMessage = "Sorry, I couldn't generate more ideas right now. Please try again in a moment."
+                messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+            }
+        }
+    }
+
+    /// Replaces a specific lesson suggestion with a new one from the AI.
+    func swapSuggestion(_ lessonToSwap: LessonSuggestion) {
+        Task {
+            swappingLessonID = lessonToSwap.id
             
-            messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(suggestionIDs)))
+            if let newSuggestion = await aiService.swapLessonSuggestion(for: topic, existingLessons: lessonSuggestions, lessonToSwap: lessonToSwap) {
+                // Find the index of the old lesson and replace it
+                if let index = lessonSuggestions.firstIndex(where: { $0.id == lessonToSwap.id }) {
+                    lessonSuggestions[index] = newSuggestion
+                }
+            } else {
+                // Handle failure - maybe show an alert or a temporary error message in the chat
+                let errorMessage = "Sorry, I couldn't swap that suggestion. Please try again."
+                messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+            }
             
-            // Ensure we only have one final prompt at a time
-            messages.removeAll { $0.content == .finalPrompt }
-            messages.append(ChatMessage(role: .assistant, content: .finalPrompt))
-            messages.append(ChatMessage(role: .assistant, content: .generateMoreIdeasButton))
+            swappingLessonID = nil
         }
     }
 
@@ -205,11 +251,16 @@ final class CourseChatViewModel: ObservableObject {
         let loadingMessage = ChatMessage(role: .assistant, content: .descriptiveLoading("Adding lessons to your plan..."))
         messages.append(loadingMessage)
         
-        let finalSuggestions = await aiService.fulfillLessonPlan(topic: topic, existingLessons: lessonSuggestions, count: lessonsToGenerate)
-        messages.removeAll { $0.id == loadingMessage.id }
+        if let finalSuggestions = await aiService.fulfillLessonPlan(topic: topic, existingLessons: lessonSuggestions, count: lessonsToGenerate) {
+            messages.removeAll { $0.id == loadingMessage.id }
 
-        lessonSuggestions.append(contentsOf: finalSuggestions)
-        
-        messages.append(ChatMessage(role: .assistant, content: .text("I've added \(lessonsToGenerate) more lessons to your plan.")))
+            lessonSuggestions.append(contentsOf: finalSuggestions)
+            
+            messages.append(ChatMessage(role: .assistant, content: .text("I've added \(lessonsToGenerate) more lessons to your plan.")))
+        } else {
+            messages.removeAll { $0.id == loadingMessage.id }
+            let errorMessage = "Sorry, I couldn't add the final lessons to your plan. You can continue to the next step, or try generating more ideas manually."
+            messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+        }
     }
 } 

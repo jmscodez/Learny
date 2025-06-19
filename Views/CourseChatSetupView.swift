@@ -23,6 +23,9 @@ struct CourseChatSetupView: View {
     @AppStorage("hasSeenAIWalkthrough") var hasSeenAIWalkthrough: Bool = false
     @State private var showWalkthrough: Bool = false
     
+    // Holds the suggestion for the info sheet
+    @State private var suggestionForDetail: LessonSuggestion?
+    
     init(topic: String) {
         _viewModel = StateObject(wrappedValue: CourseChatViewModel(topic: topic))
     }
@@ -53,10 +56,20 @@ struct CourseChatSetupView: View {
                                 MessageView(
                                     message: message,
                                     lessonSuggestions: viewModel.lessonSuggestions,
+                                    swappingLessonID: viewModel.swappingLessonID,
                                     onOptionSelected: viewModel.selectLessonCount,
                                     onToggleLesson: viewModel.toggleLessonSelection,
                                     onGenerateMore: viewModel.generateMoreSuggestions,
-                                    onClarificationResponse: viewModel.handleClarificationResponse
+                                    onClarificationResponse: viewModel.handleClarificationResponse,
+                                    onShowSuggestionInfo: { suggestion in
+                                        self.suggestionForDetail = suggestion
+                                    },
+                                    onSwapSuggestion: viewModel.swapSuggestion,
+                                    onRetry: {
+                                        Task {
+                                            await viewModel.generateAndDisplayInitialSuggestions()
+                                        }
+                                    }
                                 )
                                 .id(message.id)
                             }
@@ -95,6 +108,11 @@ struct CourseChatSetupView: View {
                     generatedCourse = course
                 }
             )
+        }
+        .sheet(item: $suggestionForDetail) { suggestion in
+            NavigationView {
+                LessonChatView(lesson: suggestion)
+            }
         }
         .fullScreenCover(item: $generatedCourse) { course in
             LessonMapView(course: course)
@@ -186,10 +204,14 @@ struct CourseChatSetupView: View {
     private struct MessageView: View {
         let message: ChatMessage
         let lessonSuggestions: [LessonSuggestion]
+        let swappingLessonID: UUID?
         let onOptionSelected: (String) -> Void
         let onToggleLesson: (UUID) -> Void
         let onGenerateMore: () -> Void
         let onClarificationResponse: (String, String) -> Void
+        let onShowSuggestionInfo: (LessonSuggestion) -> Void
+        let onSwapSuggestion: (LessonSuggestion) -> Void
+        let onRetry: () -> Void
         
         var body: some View {
             HStack(alignment: .top, spacing: 12) {
@@ -200,34 +222,44 @@ struct CourseChatSetupView: View {
                     
                     VStack(alignment: .leading, spacing: 10) {
                         switch message.content {
-                        case .text(let text):
-                            Text(text).foregroundColor(.white)
+                        case .text(let text), .infoText(let text):
+                            TextBubble(text: text)
+                        case .lessonSuggestions:
+                            LessonSuggestionsView(
+                                suggestions: lessonSuggestions,
+                                swappingLessonID: swappingLessonID,
+                                onToggleLesson: onToggleLesson,
+                                onShowInfo: onShowSuggestionInfo,
+                                onSwap: onSwapSuggestion
+                            )
                         case .lessonCountOptions:
-                            LessonCountOptionsView(onOptionSelected: onOptionSelected)
+                            VStack(alignment: .leading, spacing: 12) {
+                                TextBubble(text: "To start, about how many lessons should we create for your course?")
+                                LessonCountOptionsView(onOptionSelected: onOptionSelected)
+                            }
                         case .thinkingIndicator:
                             ThinkingIndicatorView()
                         case .descriptiveLoading(let text):
                             DescriptiveLoadingView(text: text)
-                        case .lessonSuggestions:
-                            LessonSuggestionsView(suggestions: lessonSuggestions, onToggleLesson: onToggleLesson)
                         case .inlineLessonSuggestions(let suggestionIDs):
                             let suggestions = lessonSuggestions.filter { suggestionIDs.contains($0.id) }
-                            LessonSuggestionsView(suggestions: suggestions, onToggleLesson: onToggleLesson)
+                            LessonSuggestionsView(
+                                suggestions: suggestions,
+                                swappingLessonID: swappingLessonID,
+                                onToggleLesson: onToggleLesson,
+                                onShowInfo: onShowSuggestionInfo,
+                                onSwap: onSwapSuggestion
+                            )
                         case .clarificationOptions(let originalQuery, let options):
                             ClarificationOptionsView(originalQuery: originalQuery, options: options, onResponse: onClarificationResponse)
-                        case .infoText(let text):
-                            InfoTextView(text: text)
                         case .finalPrompt:
                             FinalPromptView()
                         case .generateMoreIdeasButton:
                             GenerateMoreButtonView(onGenerate: onGenerateMore)
+                        case .aiError(let message):
+                            ErrorBubbleView(message: message, onRetry: onRetry)
                         }
                     }
-                    .padding(message.content.isBubble ? 16 : 0)
-                    .background(message.content.isBubble ? Color.gray.opacity(0.2) : .clear)
-                    .cornerRadius(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
                 } else { // User role
                     Spacer()
                     if case .text(let text) = message.content {
@@ -284,71 +316,110 @@ struct CourseChatSetupView: View {
     
     private struct LessonSuggestionsView: View {
         let suggestions: [LessonSuggestion]
+        let swappingLessonID: UUID?
         let onToggleLesson: (UUID) -> Void
-        
-        private var pages: [[LessonSuggestion]] {
-            stride(from: 0, to: suggestions.count, by: 4).map { idx in
-                Array(suggestions[idx ..< min(idx + 4, suggestions.count)])
-            }
-        }
+        let onShowInfo: (LessonSuggestion) -> Void
+        let onSwap: (LessonSuggestion) -> Void
         
         var body: some View {
-            VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Here are some initial lesson ideas:")
                     .font(.headline)
                     .foregroundColor(.white)
-                    .fixedSize(horizontal: false, vertical: true)
                 
-                TabView {
-                    ForEach(pages.indices, id: \.self) { pageIndex in
-                        VStack(spacing: 12) {
-                            ForEach(pages[pageIndex]) { suggestion in
-                                LessonSuggestionRow(suggestion: suggestion, onToggle: onToggleLesson)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.bottom, 32)
-                    }
+                ForEach(suggestions) { suggestion in
+                    LessonSuggestionRow(
+                        suggestion: suggestion,
+                        isSwapping: swappingLessonID == suggestion.id,
+                        onToggle: onToggleLesson,
+                        onShowInfo: onShowInfo,
+                        onSwap: onSwap
+                    )
                 }
-                .frame(height: 320) // increased height for 4 rows + page dots
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
             }
         }
     }
     
     private struct LessonSuggestionRow: View {
         let suggestion: LessonSuggestion
+        let isSwapping: Bool
         let onToggle: (UUID) -> Void
-        @State private var showInfoPopover: Bool = false
+        let onShowInfo: (LessonSuggestion) -> Void
+        let onSwap: (LessonSuggestion) -> Void
+        @State private var isInfoButtonPressed = false
+        @State private var isSwapButtonPressed = false
         
         var body: some View {
             Button(action: { onToggle(suggestion.id) }) {
-                HStack {
-                    Image(systemName: suggestion.isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundColor(suggestion.isSelected ? .purple : .gray)
-                    
-                    Text(suggestion.title)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.leading)
+                HStack(spacing: 12) {
+                    // Title and Description
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(suggestion.title)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                    }
                     
                     Spacer()
                     
-                    Button(action: { showInfoPopover = true }) {
-                        Image(systemName: "info.circle.fill").foregroundColor(.gray)
-                    }
-                    .popover(isPresented: $showInfoPopover) {
-                        Text(suggestion.description)
-                            .padding()
-                            .frame(idealWidth: 250)
-                            .presentationCompactAdaptation(.popover)
+                    if isSwapping {
+                        ProgressView()
+                            .tint(.orange)
+                            .padding(.horizontal, 20)
+                    } else {
+                        // Swap Button
+                        Button(action: { onSwap(suggestion) }) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.title3)
+                                .foregroundColor(.orange)
+                                .padding(8)
+                                .background(Color.orange.opacity(isSwapButtonPressed ? 0.3 : 0))
+                                .clipShape(Circle())
+                        }
+                        .contentShape(Rectangle())
+                        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.isSwapButtonPressed = pressing
+                            }
+                        }, perform: {})
+
+                        // Info Button
+                        Button(action: { onShowInfo(suggestion) }) {
+                            Image(systemName: "info.circle")
+                                .font(.title2)
+                                .foregroundColor(.cyan)
+                                .padding(8)
+                                .background(Color.blue.opacity(isInfoButtonPressed ? 0.3 : 0))
+                                .clipShape(Circle())
+                        }
+                        .contentShape(Rectangle())
+                        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.isInfoButtonPressed = pressing
+                            }
+                        }, perform: {})
                     }
                 }
             }
             .padding()
-            .background(Color.white.opacity(0.1))
+            .background(
+                suggestion.isSelected
+                    ? Color.blue.opacity(0.2)
+                    : Color.black.opacity(0.3)
+            )
             .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        suggestion.isSelected
+                            ? LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            : LinearGradient(colors: [.gray.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: suggestion.isSelected ? 2 : 1
+                    )
+            )
+            .shadow(
+                color: suggestion.isSelected ? .blue.opacity(0.5) : .clear,
+                radius: 8, x: 0, y: 0
+            )
             .animation(.spring(), value: suggestion.isSelected)
         }
     }
@@ -479,6 +550,58 @@ struct CourseChatSetupView: View {
                     .foregroundColor(.gray)
             }
             .padding(.vertical, 8)
+        }
+    }
+    
+    private struct ErrorBubbleView: View {
+        let message: String
+        let onRetry: () -> Void
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.yellow)
+                    Text("AI Generation Failed")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+
+                Text(message)
+                    .font(.callout)
+                    .foregroundColor(.white.opacity(0.8))
+
+                Button(action: onRetry) {
+                    Label("Try Again", systemImage: "arrow.clockwise")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.purple)
+                        .clipShape(Capsule())
+                }
+            }
+            .padding()
+            .background(Color.red.opacity(0.3))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.red, lineWidth: 1)
+            )
+        }
+    }
+    
+    // MARK: - Extracted Message Content Views
+    
+    private struct TextBubble: View {
+        let text: String
+        var body: some View {
+            Text(text)
+                .font(.callout)
+                .foregroundColor(.white)
+                .padding()
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(16)
         }
     }
     

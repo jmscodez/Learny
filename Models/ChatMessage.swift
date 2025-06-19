@@ -35,6 +35,7 @@ struct ChatMessage: Identifiable, Equatable {
         case infoText(String)
         case finalPrompt
         case generateMoreIdeasButton
+        case aiError(String)
         // Future cases will go here, e.g., for selectable lesson lists.
     }
 }
