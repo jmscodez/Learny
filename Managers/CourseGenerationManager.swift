@@ -25,8 +25,14 @@ final class CourseGenerationManager: ObservableObject {
         generationTask = Task {
             do {
                 var generatedLessons: [Lesson] = []
+                let lessonTitles = suggestions.map { $0.title }
 
-                // Step 1: Generate detailed content for each lesson suggestion
+                // Step 1: Generate course metadata
+                statusMessage = "Designing course structure..."
+                let metadata = await aiService.generateCourseMetadata(for: topic, lessonTitles: lessonTitles)
+                await updateProgress(to: 0.1)
+
+                // Step 2: Generate detailed content for each lesson suggestion
                 for (index, suggestion) in suggestions.enumerated() {
                     let lessonIndex = Double(index + 1)
                     let totalLessons = Double(suggestions.count)
@@ -57,7 +63,7 @@ final class CourseGenerationManager: ObservableObject {
                     throw GenerationError.contentFailed
                 }
 
-                // Step 2: Assemble the final course
+                // Step 3: Assemble the final course
                 statusMessage = "Finalizing your course..."
                 let newCourse = Course(
                     id: UUID(),
@@ -67,10 +73,14 @@ final class CourseGenerationManager: ObservableObject {
                     pace: pace,
                     creationMethod: .aiAssistant,
                     lessons: generatedLessons,
-                    createdAt: Date()
+                    createdAt: Date(),
+                    overview: metadata?.overview ?? "A fantastic course about \(topic).",
+                    learningObjectives: metadata?.learningObjectives ?? [],
+                    whoIsThisFor: metadata?.whoIsThisFor ?? "Anyone interested in \(topic).",
+                    estimatedTime: metadata?.estimatedTime ?? "45-60 minutes"
                 )
                 
-                // Step 3: Save and publish the result
+                // Step 4: Save and publish the result
                 statsManager.addCourse(newCourse)
                 await updateProgress(to: 1.0)
                 statusMessage = "Done!"

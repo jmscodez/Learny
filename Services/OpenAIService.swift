@@ -41,6 +41,20 @@ struct LessonPayload: Decodable {
     let lessons: [LessonSuggestion]
 }
 
+struct CourseMetadata: Decodable {
+    let overview: String
+    let learningObjectives: [String]
+    let whoIsThisFor: String
+    let estimatedTime: String
+    
+    enum CodingKeys: String, CodingKey {
+        case overview
+        case learningObjectives = "learning_objectives"
+        case whoIsThisFor = "who_is_this_for"
+        case estimatedTime = "estimated_time"
+    }
+}
+
 /// A service that connects to a live AI language model to generate course content.
 final class OpenAIService {
     
@@ -48,7 +62,7 @@ final class OpenAIService {
     static let shared = OpenAIService()
     private init() {}
     
-    private let apiKey = "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"
+    private let apiKey = "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"
     private let model = "meta-llama/llama-4-scout"
     private let endpointURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
 
@@ -157,6 +171,40 @@ final class OpenAIService {
             suggestions[i].isSelected = true
         }
         return suggestions
+    }
+    
+    /// Generates rich, descriptive metadata for a course.
+    func generateCourseMetadata(for topic: String, lessonTitles: [String]) async -> CourseMetadata? {
+        let titles = lessonTitles.joined(separator: ", ")
+        let prompt = """
+        You are an expert curriculum designer. A user is creating a course about "\(topic)".
+        The course has the following lessons: \(titles).
+
+        Please generate the following metadata for this course. Your response MUST be a valid JSON object.
+        1. "overview": A single, engaging paragraph (around 50-70 words) that summarizes what the course is about.
+        2. "learning_objectives": An array of 2-3 strings. Each string is a key takeaway or skill the user will gain.
+        3. "who_is_this_for": A single, encouraging sentence describing the ideal student for this course.
+        4. "estimated_time": A string representing the approximate total time to complete the course (e.g., "Approx. 45-60 minutes").
+
+        Return ONLY the raw JSON object, with no other text or formatting.
+        """
+        
+        let messages = [AIMessage(role: "user", content: prompt)]
+        let request = AIRequest(model: model, messages: messages, response_format: ["type": "json_object"])
+        
+        do {
+            let data = try await performRequest(request)
+            guard let aiResponse = try? JSONDecoder().decode(AIResponse.self, from: data),
+                  let contentString = aiResponse.choices.first?.message.content,
+                  let nestedData = contentString.data(using: .utf8) else {
+                return nil
+            }
+            let metadata = try JSONDecoder().decode(CourseMetadata.self, from: nestedData)
+            return metadata
+        } catch {
+            print("AI Service Error during course metadata generation: \(error)")
+            return nil
+        }
     }
     
     /// Generates detailed content blocks for a specific lesson using the AI.

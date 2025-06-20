@@ -9,101 +9,126 @@ struct CourseDetailSheetView: View {
             // Background
             Color(red: 0.05, green: 0.05, blue: 0.1).ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 24) {
-                // Header
-                HStack {
-                    Text("Course Details")
-                        .font(.largeTitle).bold()
-                    Spacer()
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.largeTitle)
-                            .foregroundColor(.gray.opacity(0.8))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // Header
+                    HStack {
+                        Text("Course Details")
+                            .font(.largeTitle).bold()
+                        Spacer()
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.largeTitle)
+                                .foregroundColor(.gray.opacity(0.8))
+                        }
                     }
-                }
 
-                // Overview Section
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "book.closed.fill")
-                            .font(.title)
-                            .foregroundColor(.cyan)
-                        Text("Overview")
-                            .font(.title2).bold()
+                    // Overview Section
+                    InfoCard(
+                        title: "Overview",
+                        icon: "book.closed.fill",
+                        color: .cyan
+                    ) {
+                        Text(course.overview)
+                            .font(.body)
+                            .foregroundColor(.white.opacity(0.8))
                     }
-                    Text(course.overview)
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.8))
+
+                    // What You'll Learn Section
+                    InfoCard(
+                        title: "What You'll Learn",
+                        icon: "target",
+                        color: .purple
+                    ) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(course.learningObjectives, id: \.self) { objective in
+                                InfoRow(icon: "checkmark.circle", text: objective)
+                            }
+                        }
+                    }
+                    
+                    // Who It's For Section
+                    InfoCard(
+                        title: "Who It's For",
+                        icon: "person.2.fill",
+                        color: .orange
+                    ) {
+                        Text(course.whoIsThisFor)
+                            .font(.body)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
                 }
+                .foregroundColor(.white)
                 .padding()
-                .background(Color.cyan.opacity(0.1))
-                .cornerRadius(16)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.cyan, lineWidth: 1)
-                )
-
-                // What You'll Learn Section
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "target")
-                            .font(.title)
-                            .foregroundColor(.purple)
-                        Text("What You'll Learn")
-                            .font(.title2).bold()
-                    }
-
-                    // This would ideally come from the Course model
-                    InfoRow(icon: "timer", title: "Key Figures & Events", description: "Explore the pivotal moments and influential figures that shaped the course topic.")
-                    InfoRow(icon: "chart.line.uptrend.xyaxis", title: "Future Focus", description: "Discover exciting trends and developments related to the subject.")
-
-                }
-                .padding()
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(16)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.purple, lineWidth: 1)
-                )
-                
-                Spacer()
             }
-            .foregroundColor(.white)
-            .padding()
         }
     }
 }
 
-// Helper view for the "What You'll Learn" section
+// MARK: - Reusable Components
+
+private struct InfoCard<Content: View>: View {
+    let title: String
+    let icon: String
+    let color: Color
+    @ViewBuilder let content: Content
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title)
+                    .foregroundColor(color)
+                Text(title)
+                    .font(.title2).bold()
+            }
+            content
+        }
+        .padding()
+        .background(color.opacity(0.1))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color, lineWidth: 1)
+        )
+    }
+}
+
 private struct InfoRow: View {
     let icon: String
-    let title: String
-    let description: String
+    let text: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.headline)
                 .foregroundColor(.purple)
-                .frame(width: 30)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
-            }
+            
+            Text(text)
+                .font(.subheadline)
         }
     }
 }
 
-// Add a placeholder 'overview' to the Course model for preview
-extension Course {
-    var overview: String {
-        "Get ready to discover the topic of \(title) like never before! This course takes you on a journey through the fascinating history, vibrant culture, and promising future of this subject. Whether you're a history buff, a curious traveler, or a local looking to deepen your connection with the city, this course is for you."
+private struct StatPill: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+            Text(text)
+        }
+        .font(.subheadline.bold())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.green.opacity(0.2))
+        .cornerRadius(20)
     }
 }
+
+
+// MARK: - Preview
 
 struct CourseDetailSheetView_Previews: PreviewProvider {
     static var previews: some View {
@@ -114,8 +139,12 @@ struct CourseDetailSheetView_Previews: PreviewProvider {
             difficulty: .beginner,
             pace: .balanced,
             creationMethod: .aiAssistant,
-            lessons: [],
-            createdAt: Date()
+            lessons: [Lesson(id: UUID(), title: "test", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false)],
+            createdAt: Date(),
+            overview: "Get ready to discover the topic of WWI like never before! This course takes you on a journey through the fascinating history, vibrant culture, and promising future of this subject.",
+            learningObjectives: ["Understand the causes of the war.", "Analyze key battles.", "Explore the treaty's legacy."],
+            whoIsThisFor: "Perfect for history buffs, students, or anyone curious about this defining moment.",
+            estimatedTime: "Approx. 45-60 minutes"
         )
 
         CourseDetailSheetView(course: sampleCourse)
