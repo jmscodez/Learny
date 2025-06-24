@@ -181,7 +181,7 @@ private struct CourseCard: View {
 
     private var progress: Double {
         guard !course.lessons.isEmpty else { return 0 }
-        return Double(course.lessons.filter(\.isComplete).count) / Double(course.lessons.count)
+        return Double(course.lessons.filter { $0.isCompleted }.count) / Double(course.lessons.count)
     }
 
     var body: some View {
@@ -201,7 +201,7 @@ private struct CourseCard: View {
                         .foregroundColor(.blue)
                 }
 
-                Text("\(Int(progress * 100))% • \(course.lessons.filter(\.isComplete).count)/\(course.lessons.count) lessons")
+                Text("\(Int(progress * 100))% • \(course.lessons.filter { $0.isCompleted }.count)/\(course.lessons.count) lessons")
                     .font(.caption)
                     .foregroundColor(.gray)
             }

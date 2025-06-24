@@ -139,7 +139,7 @@ struct CourseDetailSheetView_Previews: PreviewProvider {
             difficulty: .beginner,
             pace: .balanced,
             creationMethod: .aiAssistant,
-            lessons: [Lesson(id: UUID(), title: "test", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false)],
+            lessons: [Lesson(title: "The Spark", lessonNumber: 1)],
             createdAt: Date(),
             overview: "Get ready to discover the topic of WWI like never before! This course takes you on a journey through the fascinating history, vibrant culture, and promising future of this subject.",
             learningObjectives: ["Understand the causes of the war.", "Analyze key battles.", "Explore the treaty's legacy."],

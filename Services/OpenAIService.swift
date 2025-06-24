@@ -62,7 +62,7 @@ final class OpenAIService {
     static let shared = OpenAIService()
     private init() {}
     
-    private let apiKey = "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"
+    private let apiKey = APIKey.openRouterKey
     private let model = "meta-llama/llama-4-scout"
     private let endpointURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
 
@@ -207,91 +207,90 @@ final class OpenAIService {
         }
     }
     
-    /// Generates detailed content blocks for a specific lesson using the AI.
-    func generateLessonContent(for lessonTitle: String, topic: String) async -> [ContentBlock] {
-        let prompt = "You are an expert curriculum designer. Create a detailed lesson for a course on '\(topic)'. The lesson title is '\(lessonTitle)'. Your response MUST be a valid JSON object with a single key 'blocks'. The value of 'blocks' should be an array of content blocks. Each block is an object with a 'type' key ('text', 'dialogue', or 'matching') and associated content. \n- For 'text', include a 'text' field with a paragraph summary.\n- For 'dialogue', include a 'lines' array of objects, where each object has a 'speaker' and a 'message' key.\n- For 'matching', include a 'pairs' array of objects, where each object has a 'term' and 'definition' key.\nReturn ONLY the raw JSON object, with no other text or formatting."
-        
-        var request = URLRequest(url: endpointURL)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("Learny App", forHTTPHeaderField: "X-Title")
-        request.addValue("https://learny.app", forHTTPHeaderField: "HTTP-Referer")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    /// Generates the rich, interactive screens for a full lesson.
+    func generateLessonScreens(for lessonTitle: String, topic: String) async -> [LessonScreen] {
+        let prompt = """
+        You are a world-class instructional designer, and your specialty is creating unforgettable, specific, and vivid learning experiences for a mobile app. Your goal is not to be generic, but to use concrete examples, names, and data to tell a compelling story.
 
-        let payload: [String: Any] = [
-            "model": model,
-            "messages": [
-                ["role": "system", "content": "You are a JSON-only curriculum assistant."],
-                ["role": "user", "content": prompt]
-            ],
-            "response_format": ["type": "json_object"]
+        The course is about "\(topic)" and this lesson is titled "\(lessonTitle)".
+
+        **Your Core Principles:**
+        1.  **Be Specific, Not Vague:** Instead of "players have influence," say "LeBron James' 'I PROMISE' school in Akron has provided resources for over 1,600 students." Use names, numbers, and specific events.
+        2.  **Tell a Story:** Structure the lesson with a clear beginning, middle, and end. Create a narrative arc.
+        3.  **Focus on Surprising Details:** Uncover fascinating facts or perspectives that the average person might not know.
+        4.  **Vary Interactivity:** Use a mix of screen types to keep the user engaged and active.
+
+        Your response MUST be a valid JSON object with a single key, "screens".
+        The value of "screens" is an array of 5-8 screen objects. Each object must have a "type" and a "payload".
+
+        **Screen Types & How To Use Them Effectively:**
+
+        1.  `"type": "title"`
+            -   `"payload": { "title": String, "subtitle": String (optional), "hook": String }`
+            -   **Usage:** The hook must be a fascinating, non-obvious question that sparks immediate curiosity.
+
+        2.  `"type": "info"`
+            -   `"payload": { "text": String }`
+            -   **Usage:** Present a single, powerful idea or fact. Use it to introduce a key person, event, or concept with specific details.
+
+        3.  `"type": "tapToReveal"`
+            -   `"payload": { "question": String, "answer": String }`
+            -   **Usage:** Pose a "What happened next?" or "What was the result?" style question. The answer should be a surprising or impactful outcome.
+
+        4.  `"type": "fillInTheBlank"`
+            -   `"payload": { "promptStart": String, "promptEnd": String, "correctAnswer": String }`
+            -   **Usage:** Test a key term, name, or number that was just introduced.
+
+        5.  `"type": "dialogue"`
+            -   `"payload": { "lines": [{ "speaker": String, "message": String }] }`
+            -   **Usage:** Create a short, impactful exchange between real, named individuals. It could be a quote or a simulated conversation that reveals different perspectives.
+
+        6.  `"type": "matching"`
+            -   `"payload": { "pairs": [{ "term": String, "definition": String }] }`
+            -   **Usage:** Help the user connect key concepts, people, or projects to their impact.
+
+        7.  `"type": "quiz"`
+            -   `"payload": { "questions": [{ "prompt": String, "options": [String], "correctIndex": Int }] }`
+            -   **Usage:** End the lesson by testing the specific, concrete information presented in the previous screens. The questions should not be generic.
+
+        **Task:**
+        Generate a sequence of 5-8 screens for the lesson "\(lessonTitle)".
+        Start with a "title" screen.
+        End with a "quiz" screen.
+        Return ONLY the raw JSON object, with no other text, markdown, or explanations.
+        """
+        
+        let messages = [
+            AIMessage(role: "system", content: "You are a JSON-only curriculum design expert."),
+            AIMessage(role: "user", content: prompt)
         ]
+        
+        let request = AIRequest(model: model, messages: messages, max_tokens: 4096, response_format: ["type": "json_object"])
 
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-            let (data, _) = try await URLSession.shared.data(for: request)
-            struct AIResponse: Decodable {
-                struct Choice: Decodable {
-                    struct Message: Decodable { let content: String }
-                    let message: Message
-                }
-                let choices: [Choice]
+            let data = try await performRequest(request)
+            
+            struct ScreenPayload: Decodable {
+                let screens: [LessonScreen]
             }
-            let aiResponse = try JSONDecoder().decode(AIResponse.self, from: data)
-            guard let contentString = aiResponse.choices.first?.message.content else {
+
+            guard let aiResponse = try? JSONDecoder().decode(AIResponse.self, from: data),
+                  let contentString = aiResponse.choices.first?.message.content else {
                 print("Failed to get lesson content string from AI response.")
                 return []
             }
             
-            print("[AI RESPONSE CHECKER] Raw content string for lesson content:\n---\n\(contentString)\n---")
+            guard let jsonString = extractJsonString(from: contentString),
+                  let nestedData = jsonString.data(using: .utf8) else {
+                print("Could not extract or encode JSON string from AI response.")
+                return []
+            }
 
-
-            // Clean the string if it's wrapped in markdown
-            let cleanedContentString = contentString.trimmingCharacters(in: .whitespacesAndNewlines)
-                .replacingOccurrences(of: "```json", with: "")
-                .replacingOccurrences(of: "```", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            print("[AI RESPONSE CHECKER] Cleaned content string for parsing: \(cleanedContentString)")
-
-            // Decode the nested JSON
-            struct BlockPayload: Decodable {
-                let blocks: [RawBlock]
-            }
-            struct RawBlock: Decodable {
-                let type: String
-                let text: String?
-                let lines: [RawDialogueLine]?
-                let pairs: [RawMatchingPair]?
-            }
-            struct RawDialogueLine: Decodable {
-                let speaker: String
-                let message: String
-            }
-            struct RawMatchingPair: Decodable {
-                let term: String
-                let definition: String
-            }
-            
-            let nested = Data(cleanedContentString.utf8)
-            let payloadData = try JSONDecoder().decode(BlockPayload.self, from: nested)
-            // Map RawBlock to ContentBlock
-            let blocks: [ContentBlock] = payloadData.blocks.map { raw in
-                switch raw.type {
-                case "text": return .text(raw.text ?? "")
-                case "dialogue":
-                    let dialogueLines = raw.lines?.map { DialogueLine(id: UUID(), speaker: $0.speaker, text: $0.message) }
-                    return .dialogue(dialogueLines ?? [])
-                case "matching":
-                    let matches = raw.pairs?.map { MatchingPair(id: UUID(), term: $0.term, definition: $0.definition) } ?? []
-                    let game = MatchingGame(id: UUID(), pairs: matches)
-                    return .matching(game)
-                default: return .text("")
-                }
-            }
-            return blocks
+            let payloadData = try JSONDecoder().decode(ScreenPayload.self, from: nestedData)
+            return payloadData.screens
         } catch {
-            print("Error generating lesson content: \(error)")
+            print("Error generating lesson screens: \(error)")
+            // Consider returning a fallback lesson here
             return []
         }
     }
@@ -419,6 +418,6 @@ final class OpenAIService {
             return String(text[start...end])
         }
 
-        return nil
+        return text
     }
 } 

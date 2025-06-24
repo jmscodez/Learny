@@ -8,61 +8,58 @@
 import SwiftUI
 
 struct QuizResultsView: View {
-    let score: Int
-    let total: Int
-    var onDismiss: () -> Void
-    @Environment(\.presentationMode) var presentationMode
-
+    let correctAnswers: Int
+    let totalQuestions: Int
+    let onContinue: () -> Void
+    
+    private var scorePercentage: Double {
+        Double(correctAnswers) / Double(totalQuestions)
+    }
+    
+    private var feedbackText: String {
+        if scorePercentage == 1.0 {
+            return "Perfect Score!"
+        } else if scorePercentage >= 0.7 {
+            return "Great Job!"
+        } else {
+            return "Good Effort!"
+        }
+    }
+    
     var body: some View {
-        ZStack {
-            Color(red: 0.1, green: 0.1, blue: 0.2).ignoresSafeArea()
+        VStack(spacing: 24) {
+            Text(feedbackText)
+                .font(.largeTitle).bold()
             
-            VStack(spacing: 30) {
-                Text("Quiz Complete!")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
+            VStack {
                 Text("You scored")
                     .font(.title2)
-                    .foregroundColor(.gray)
-                
-                Text("\(score) / \(total)")
-                    .font(.system(size: 70, weight: .bold))
-                    .foregroundColor(passsed ? .green : .red)
-                
-                Text(passsed ? "Excellent work! You've passed the quiz." : "Good try! Review the material and try again.")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                
-                Button(action: {
-                    onDismiss()
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("Continue")
-                        .fontWeight(.bold)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
+                Text("\(correctAnswers) / \(totalQuestions)")
+                    .font(.system(size: 60, weight: .bold))
             }
-            .padding()
+            
+            // Could add a more detailed breakdown here later
+            
+            Button(action: onContinue) {
+                Text("Continue Learning")
+                    .font(.headline)
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.yellow)
+                    .cornerRadius(16)
+            }
         }
-        .navigationBarBackButtonHidden(true)
-    }
-
-    private var passsed: Bool {
-        total > 0 && Double(score) / Double(total) >= 0.8
+        .padding()
     }
 }
 
 struct QuizResultsView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
-            QuizResultsView(score: 4, total: 5, onDismiss: {})
+        ZStack {
+            Color.black.ignoresSafeArea()
+            QuizResultsView(correctAnswers: 2, totalQuestions: 3, onContinue: {})
+                .foregroundColor(.white)
         }
     }
 }

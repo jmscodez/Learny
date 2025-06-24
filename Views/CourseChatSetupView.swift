@@ -116,8 +116,8 @@ struct CourseChatSetupView: View {
         .sheet(item: $suggestionForDetail) { suggestion in
             NavigationView {
                 LessonChatView(lesson: suggestion)
+                }
             }
-        }
     }
     
     
@@ -206,20 +206,20 @@ struct CourseChatSetupView: View {
                             TextBubble(text: text)
                         case .lessonSuggestions:
                             LessonSuggestionsView(
-                                suggestions: lessonSuggestions,
+                            suggestions: lessonSuggestions,
                                 swappingLessonID: swappingLessonID,
                                 onToggleLesson: onToggleLesson,
                                 onShowInfo: onShowSuggestionInfo,
                                 onSwap: onSwapSuggestion
-                            )
-                        case .lessonCountOptions:
+                        )
+                case .lessonCountOptions:
                             VStack(alignment: .leading, spacing: 12) {
                                 TextBubble(text: "To start, about how many lessons should we create for your course?")
                                 LessonCountOptionsView(onOptionSelected: onOptionSelected)
-                            }
+                    }
                         case .thinkingIndicator:
                             ThinkingIndicatorView()
-                        case .descriptiveLoading(let text):
+                case .descriptiveLoading(let text):
                             DescriptiveLoadingView(text: text)
                         case .inlineLessonSuggestions(let suggestionIDs):
                             let suggestions = lessonSuggestions.filter { suggestionIDs.contains($0.id) }
@@ -234,7 +234,7 @@ struct CourseChatSetupView: View {
                             ClarificationOptionsView(originalQuery: originalQuery, options: options, onResponse: onClarificationResponse)
                         case .finalPrompt:
                             FinalPromptView()
-                        case .generateMoreIdeasButton:
+                case .generateMoreIdeasButton:
                             GenerateMoreButtonView(onGenerate: onGenerateMore)
                         case .aiError(let message):
                             ErrorBubbleView(message: message, onRetry: onRetry)
@@ -379,14 +379,14 @@ struct CourseChatSetupView: View {
                         }, perform: {})
                     }
                 }
-            }
-            .padding()
+                }
+                .padding()
             .background(
                 suggestion.isSelected
                     ? Color.blue.opacity(0.2)
                     : Color.black.opacity(0.3)
             )
-            .cornerRadius(12)
+                .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(

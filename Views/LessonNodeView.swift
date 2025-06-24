@@ -6,9 +6,9 @@ struct LessonNodeView: View {
     @State private var isPulsing = false
     
     private var iconName: String {
-        if lesson.isComplete {
+        if lesson.isCompleted {
             return "checkmark"
-        } else if lesson.isUnlocked {
+        } else if lesson.isCurrent {
             return "play.fill"
         } else {
             return "lock.fill"
@@ -16,9 +16,9 @@ struct LessonNodeView: View {
     }
     
     private var iconColor: Color {
-        if lesson.isComplete {
+        if lesson.isCompleted {
             return .white
-        } else if lesson.isUnlocked {
+        } else if lesson.isCurrent {
             return .white
         } else {
             return .gray.opacity(0.7)
@@ -26,9 +26,9 @@ struct LessonNodeView: View {
     }
     
     private var nodeGradient: LinearGradient {
-        if lesson.isComplete {
+        if lesson.isCompleted {
             return LinearGradient(colors: [.green, .green.opacity(0.7)], startPoint: .top, endPoint: .bottom)
-        } else if lesson.isUnlocked {
+        } else if lesson.isCurrent {
             return LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)
         } else {
             return LinearGradient(colors: [Color(white: 0.3), Color(white: 0.2)], startPoint: .top, endPoint: .bottom)
@@ -38,28 +38,28 @@ struct LessonNodeView: View {
     var body: some View {
         VStack(alignment: alignment, spacing: 8) {
             ZStack {
-                // Base of the 3D effect
+                // Base of the 3D effect. The current lesson is larger.
                 Circle()
                     .fill(nodeGradient)
-                    .frame(width: lesson.isUnlocked && !lesson.isComplete ? 80 : 70, height: lesson.isUnlocked && !lesson.isComplete ? 80 : 70)
+                    .frame(width: lesson.isCurrent ? 80 : 70, height: lesson.isCurrent ? 80 : 70)
                     .shadow(color: .black.opacity(0.4), radius: 5, y: 5)
                 
-                // Pulsing glow for the current lesson
-                if lesson.isUnlocked && !lesson.isComplete {
+                // Pulsing glow for the current lesson.
+                if lesson.isCurrent {
                     Circle()
                         .stroke(Color.blue.opacity(0.7), lineWidth: 2)
                         .frame(width: isPulsing ? 90 : 80, height: isPulsing ? 90 : 80)
                         .opacity(isPulsing ? 0 : 1)
                 }
                 
-                // Top "button" part
+                // Top "button" part.
                 Circle()
                     .fill(nodeGradient.opacity(0.8))
-                    .frame(width: lesson.isUnlocked && !lesson.isComplete ? 70 : 60, height: lesson.isUnlocked && !lesson.isComplete ? 70 : 60)
+                    .frame(width: lesson.isCurrent ? 70 : 60, height: lesson.isCurrent ? 70 : 60)
                     .shadow(color: .white.opacity(0.3), radius: 2, y: -2) // Inner highlight
                 
                 Image(systemName: iconName)
-                    .font(lesson.isUnlocked && !lesson.isComplete ? .largeTitle : .title)
+                    .font(lesson.isCurrent ? .largeTitle : .title)
                     .foregroundColor(iconColor)
             }
             
@@ -69,9 +69,10 @@ struct LessonNodeView: View {
                 .foregroundColor(.white)
                 .frame(width: 120, alignment: alignment == .leading ? .leading : .trailing)
         }
-        .opacity(lesson.isUnlocked ? 1.0 : 0.7)
+        // Locked lessons are dimmed.
+        .opacity(lesson.isCompleted || lesson.isCurrent ? 1.0 : 0.7)
         .onAppear {
-            if lesson.isUnlocked && !lesson.isComplete {
+            if lesson.isCurrent {
                 withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                     isPulsing = true
                 }
@@ -83,9 +84,9 @@ struct LessonNodeView: View {
 struct LessonNodeView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            LessonNodeView(lesson: Lesson(id: UUID(), title: "First Lesson", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false), alignment: .leading)
-            LessonNodeView(lesson: Lesson(id: UUID(), title: "Completed", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: true), alignment: .trailing)
-            LessonNodeView(lesson: Lesson(id: UUID(), title: "Locked Lesson with a very long title that wraps around", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false), alignment: .leading)
+            LessonNodeView(lesson: Lesson(title: "Current Lesson", lessonNumber: 1, isCurrent: true), alignment: .leading)
+            LessonNodeView(lesson: Lesson(title: "Completed Lesson", lessonNumber: 2, isCompleted: true), alignment: .trailing)
+            LessonNodeView(lesson: Lesson(title: "Locked Lesson", lessonNumber: 3), alignment: .leading)
         }
         .padding()
         .background(Color.black)

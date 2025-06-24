@@ -26,6 +26,7 @@ final class CourseGenerationManager: ObservableObject {
             do {
                 var generatedLessons: [Lesson] = []
                 let lessonTitles = suggestions.map { $0.title }
+                let checkpointInterval = 3 // Add a quiz after every 3 lessons
 
                 // Step 1: Generate course metadata
                 statusMessage = "Designing course structure..."
@@ -37,25 +38,23 @@ final class CourseGenerationManager: ObservableObject {
                     let lessonIndex = Double(index + 1)
                     let totalLessons = Double(suggestions.count)
                     
-                    statusMessage = "Creating content for lesson \(index + 1)..."
-                    let contentBlocks = await aiService.generateLessonContent(for: suggestion.title, topic: topic)
+                    statusMessage = "Creating lesson \(index + 1): \(suggestion.title)..."
+                    // The new AI service call that generates all screens for a lesson at once.
+                    let screens = await aiService.generateLessonScreens(for: suggestion.title, topic: topic)
                     
-                    guard !contentBlocks.isEmpty else {
-                        // For now, we'll skip lessons that fail, but you could implement a retry here
-                        continue
-                    }
+                    // A lesson needs at least one screen to be valid.
+                    guard !screens.isEmpty else { continue }
                     
+                    // Create a new lesson with the generated screens.
                     let newLesson = Lesson(
-                        id: UUID(),
                         title: suggestion.title,
-                        contentBlocks: contentBlocks,
-                        quiz: [], // Quiz generation can be a future step
-                        isUnlocked: index == 0, // Only the first lesson is unlocked
-                        isComplete: false
+                        lessonNumber: index + 1,
+                        screens: screens,
+                        isCurrent: generatedLessons.isEmpty // First lesson is the current one.
                     )
                     generatedLessons.append(newLesson)
                     
-                    // Update progress after each lesson is fully generated
+                    // Update progress after each lesson is fully generated.
                     await updateProgress(to: 0.1 + (0.8 * (lessonIndex / totalLessons)))
                 }
                 

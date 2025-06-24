@@ -11,7 +11,7 @@ final class TrophyManager: ObservableObject {
     @Published var unlockedTrophies: Set<String> = []
 
     func evaluate(courses: [Course], streak: Int) {
-        if courses.contains(where: { $0.lessons.allSatisfy(\.isComplete) }) {
+        if courses.contains(where: { $0.lessons.allSatisfy(\.isCompleted) }) {
             unlockedTrophies.insert("First Course Complete")
         }
         if streak >= 3 {

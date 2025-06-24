@@ -90,19 +90,19 @@ private struct StatsView: View {
             StatRow(
                 icon: "checkmark.circle.fill",
                 label: "Courses Completed",
-                value: "\(stats.courses.filter { $0.lessons.allSatisfy(\.isComplete) }.count)",
+                value: "\(stats.courses.filter { $0.lessons.allSatisfy { $0.isCompleted } }.count)",
                 color: .green
             )
             StatRow(
                 icon: "book.closed.fill",
                 label: "Lessons Completed",
-                value: "\(stats.courses.reduce(0) { $0 + $1.lessons.filter(\.isComplete).count })",
+                value: "\(stats.courses.reduce(0) { $0 + $1.lessons.filter { $0.isCompleted }.count })",
                 color: .cyan
             )
             StatRow(
                 icon: "star.fill",
                 label: "Total XP",
-                value: "\(stats.courses.reduce(0) { $0 + $1.lessons.filter(\.isComplete).count * 10 })",
+                value: "\(stats.courses.reduce(0) { $0 + $1.lessons.filter { $0.isCompleted }.count * 10 })",
                 color: .yellow
             )
             StatRow(

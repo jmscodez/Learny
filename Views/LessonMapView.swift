@@ -25,6 +25,8 @@ struct LessonMapView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var showCourseDetails = false
+    @State private var showXpAnimation = false
+    @State private var xpGained = 0
     
     // Define a more reasonable spacing for each node
     private let nodeVerticalSpacing: CGFloat = 180.0
@@ -45,18 +47,6 @@ struct LessonMapView: View {
             // Placeholder for a dynamic, themed background
             LinearGradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.1), .black], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
-
-            // Loading overlay
-            if viewModel.isGeneratingContent {
-                VStack(spacing: 16) {
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    Text("Generating lesson content...")
-                        .foregroundColor(.white)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.opacity(0.7))
-                .zIndex(2) // Ensure it's on top
-            }
 
             VStack(spacing: 0) {
                 // New, cleaner header
@@ -85,14 +75,46 @@ struct LessonMapView: View {
                     }
                 }
             }
+            
+            if showXpAnimation {
+                XPAnimationView(amount: xpGained)
+                    .onAppear {
+                        // The animation will last 2 seconds, then disappear
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            showXpAnimation = false
+                        }
+                    }
+            }
         }
         .navigationBarHidden(true) // Hiding the default nav bar
         .sheet(isPresented: $showCourseDetails) {
             CourseDetailSheetView(course: viewModel.course)
         }
-        .onAppear {
-            viewModel.generateLessonContent()
+        .onReceive(viewModel.xpGainedPublisher) { xp in
+            xpGained = xp
+            showXpAnimation = true
         }
+    }
+}
+
+// MARK: - XP Animation
+struct XPAnimationView: View {
+    let amount: Int
+    @State private var isAnimating = false
+    
+    var body: some View {
+        Text("+ \(amount) XP")
+            .font(.largeTitle).bold()
+            .foregroundColor(.yellow)
+            .shadow(color: .black, radius: 2)
+            .scaleEffect(isAnimating ? 1.5 : 1.0)
+            .offset(y: isAnimating ? -100 : 0)
+            .opacity(isAnimating ? 0 : 1)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 2.0)) {
+                    isAnimating = true
+                }
+            }
     }
 }
 
@@ -105,11 +127,11 @@ private struct NewHeaderView: View {
     
     private var progress: Double {
         guard !lessons.isEmpty else { return 0 }
-        return Double(lessons.filter(\.isComplete).count) / Double(lessons.count)
+        return Double(lessons.filter { $0.isCompleted }.count) / Double(lessons.count)
     }
     
     private var xp: Int {
-        lessons.filter(\.isComplete).count * 10
+        lessons.filter { $0.isCompleted }.count * 10
     }
     
     var body: some View {
@@ -188,15 +210,20 @@ private struct NodesView: View {
             // Determine the alignment based on the curve's position
             let alignment: HorizontalAlignment = (xOffset < 0) ? .leading : .trailing
 
-            NavigationLink(destination: LessonDetailView(lesson: lesson).environmentObject(viewModel)) {
+            NavigationLink(destination: destinationView(for: lesson)) {
                 LessonNodeView(lesson: lesson, alignment: alignment)
             }
-            .disabled(!lesson.isUnlocked)
+            .disabled(!lesson.isCurrent && !lesson.isCompleted)
             .position(
                 x: (UIScreen.main.bounds.width / 2) + xOffset,
                 y: yPos
             )
         }
+    }
+    
+    @ViewBuilder
+    private func destinationView(for lesson: Lesson) -> some View {
+        LessonPlayerView(lesson: lesson).environmentObject(viewModel)
     }
 }
 
@@ -232,11 +259,11 @@ private struct WindingPath: Shape {
 struct LessonMapView_Previews: PreviewProvider {
     static var previews: some View {
         let sampleLessons = [
-            Lesson(id: UUID(), title: "The Spark: Assassination and Alliances", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: true),
-            Lesson(id: UUID(), title: "Life in the Trenches: A New Kind of War", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false),
-            Lesson(id: UUID(), title: "The War's Global Reach", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false),
-            Lesson(id: UUID(), title: "America Enters the Fray", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false),
-            Lesson(id: UUID(), title: "The Treaty of Versailles and Its Legacy", contentBlocks: [], quiz: [], isUnlocked: false, isComplete: false)
+            Lesson(title: "The Spark: Assassination and Alliances", lessonNumber: 1, isCompleted: true),
+            Lesson(title: "Life in the Trenches: A New Kind of War", lessonNumber: 2, isCurrent: true),
+            Lesson(title: "The War's Global Reach", lessonNumber: 3),
+            Lesson(title: "America Enters the Fray", lessonNumber: 4),
+            Lesson(title: "The Treaty of Versailles and Its Legacy", lessonNumber: 5)
         ]
         let sampleCourse = Course(
             id: UUID(),

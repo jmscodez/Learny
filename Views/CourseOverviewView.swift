@@ -101,8 +101,8 @@ extension LinearGradient {
 struct CourseOverviewView_Previews: PreviewProvider {
     static var previews: some View {
         let sampleLessons = [
-            Lesson(id: UUID(), title: "Lesson 1: Intro", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false),
-            Lesson(id: UUID(), title: "Lesson 2: Deep Dive", contentBlocks: [], quiz: [], isUnlocked: true, isComplete: false)
+            Lesson(title: "Lesson 1: Intro", lessonNumber: 1, isCurrent: true),
+            Lesson(title: "Lesson 2: Deep Dive", lessonNumber: 2)
         ]
         let sampleCourse = Course(
             id: UUID(),
