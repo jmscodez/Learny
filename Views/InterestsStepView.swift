@@ -63,24 +63,23 @@ struct InterestsStepView: View {
     private var interestGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 16) {
             if isLoadingInterests {
-                // Loading state
+                // Loading state - simple and stable
                 ForEach(0..<8, id: \.self) { index in
                     LoadingInterestCard()
-                        .opacity(animationProgress)
-                        .offset(y: animationProgress == 1.0 ? 0 : 20)
-                        .animation(.easeOut(duration: 0.6).delay(Double(index) * 0.1), value: animationProgress)
                 }
             } else {
                 let interestsToShow = selectedInterests.isEmpty ? getInterestAreas(for: topic) : selectedInterests
                 ForEach(Array(interestsToShow.enumerated()), id: \.element.id) { index, interest in
                     InterestCard(
                         interest: binding(for: interest),
-                        animationDelay: Double(index) * 0.05
+                        animationDelay: 0 // Remove staggered animation
                     )
                 }
             }
         }
         .padding(.horizontal, 20)
+        .opacity(isLoadingInterests ? 0.7 : 1.0)
+        .animation(.easeInOut(duration: 0.3), value: isLoadingInterests)
     }
     
     @ViewBuilder
@@ -131,20 +130,26 @@ struct InterestsStepView: View {
     }
     
     private func loadInterestAreas() {
+        print("📱 [UI DEBUG] Starting to load interests for topic: '\(topic)'")
         isLoadingInterests = true
         
         Task {
+            print("📱 [UI DEBUG] Calling AI service...")
             // Try to get AI-generated interests
             if let aiInterests = await OpenAIService.shared.generateTopicSpecificInterests(for: topic) {
+                print("📱 [UI DEBUG] AI generated \(aiInterests.count) interests successfully")
                 await MainActor.run {
                     selectedInterests = aiInterests
                     isLoadingInterests = false
+                    print("📱 [UI DEBUG] Updated UI with AI interests")
                 }
             } else {
+                print("📱 [UI DEBUG] AI generation failed, using fallback")
                 // Fallback to hardcoded interests
                 await MainActor.run {
                     selectedInterests = getInterestAreas(for: topic)
                     isLoadingInterests = false
+                    print("📱 [UI DEBUG] Updated UI with fallback interests")
                 }
             }
         }
@@ -220,6 +225,17 @@ struct InterestsStepView: View {
                 InterestArea(title: "Advanced Concepts", icon: "infinity", color: .cyan),
                 InterestArea(title: "Mathematical Proofs", icon: "checkmark.seal.fill", color: .mint)
             ]
+        } else if topicLower.contains("soccer") || topicLower.contains("football") {
+            return [
+                InterestArea(title: "Ball Control & Dribbling", icon: "figure.soccer", color: .green),
+                InterestArea(title: "Tactical Formations", icon: "rectangle.3.group", color: .blue),
+                InterestArea(title: "Shooting Techniques", icon: "target", color: .red),
+                InterestArea(title: "Defensive Strategies", icon: "shield.fill", color: .purple),
+                InterestArea(title: "Famous Players", icon: "star.fill", color: .yellow),
+                InterestArea(title: "World Cup History", icon: "globe", color: .orange),
+                InterestArea(title: "Youth Development", icon: "figure.run", color: .cyan),
+                InterestArea(title: "Fitness & Training", icon: "heart.fill", color: .pink)
+            ]
         } else {
             // Fallback for any other topics
             return [
@@ -240,12 +256,9 @@ struct InterestCard: View {
     @Binding var interest: InterestArea
     let animationDelay: Double
     
-    @State private var animationOffset: CGFloat = 30
-    @State private var animationOpacity: Double = 0
-    
     var body: some View {
         Button(action: {
-            withAnimation(.spring()) {
+            withAnimation(.easeInOut(duration: 0.2)) {
                 interest.isSelected.toggle()
             }
         }) {
@@ -259,7 +272,6 @@ struct InterestCard: View {
                             interest.color.opacity(0.2)
                         )
                         .frame(width: 50, height: 50)
-                        .scaleEffect(interest.isSelected ? 1.1 : 1.0)
                     
                     Image(systemName: interest.icon)
                         .font(.title2)
@@ -267,7 +279,6 @@ struct InterestCard: View {
                             interest.isSelected ? .white : interest.color
                         )
                 }
-                .animation(.spring(), value: interest.isSelected)
                 
                 // Title
                 Text(interest.title)
@@ -281,8 +292,6 @@ struct InterestCard: View {
                 Image(systemName: interest.isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.caption)
                     .foregroundColor(interest.isSelected ? interest.color : .white.opacity(0.3))
-                    .scaleEffect(interest.isSelected ? 1.2 : 1.0)
-                    .animation(.spring(), value: interest.isSelected)
             }
             .padding(16)
             .frame(maxWidth: .infinity, minHeight: 120)
@@ -303,23 +312,15 @@ struct InterestCard: View {
                             )
                     )
             )
-            .scaleEffect(interest.isSelected ? 1.05 : 1.0)
+            .scaleEffect(interest.isSelected ? 1.02 : 1.0)
             .shadow(
-                color: interest.isSelected ? interest.color.opacity(0.3) : .clear,
-                radius: interest.isSelected ? 8 : 0,
-                y: interest.isSelected ? 4 : 0
+                color: interest.isSelected ? interest.color.opacity(0.2) : .clear,
+                radius: interest.isSelected ? 4 : 0,
+                y: interest.isSelected ? 2 : 0
             )
-            .animation(.spring(), value: interest.isSelected)
         }
         .buttonStyle(PlainButtonStyle())
-        .offset(y: animationOffset)
-        .opacity(animationOpacity)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.6).delay(animationDelay)) {
-                animationOffset = 0
-                animationOpacity = 1
-            }
-        }
+        .animation(.easeInOut(duration: 0.2), value: interest.isSelected)
     }
 }
 
@@ -344,7 +345,7 @@ struct InterestCard: View {
 }
 
 struct LoadingInterestCard: View {
-    @State private var shimmerOffset: CGFloat = -200
+    @State private var opacity: Double = 0.3
     
     var body: some View {
         VStack(spacing: 12) {
@@ -352,43 +353,11 @@ struct LoadingInterestCard: View {
             Circle()
                 .fill(Color.white.opacity(0.1))
                 .frame(width: 50, height: 50)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.0),
-                                    Color.white.opacity(0.1),
-                                    Color.white.opacity(0.0)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .offset(x: shimmerOffset)
-                        .clipped()
-                )
             
             // Title placeholder
             RoundedRectangle(cornerRadius: 4)
                 .fill(Color.white.opacity(0.1))
                 .frame(height: 16)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.0),
-                                    Color.white.opacity(0.1),
-                                    Color.white.opacity(0.0)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .offset(x: shimmerOffset)
-                        .clipped()
-                )
             
             // Selection indicator placeholder
             Circle()
@@ -405,9 +374,10 @@ struct LoadingInterestCard: View {
                         .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
         )
+        .opacity(opacity)
         .onAppear {
-            withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                shimmerOffset = 200
+            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                opacity = 0.7
             }
         }
     }

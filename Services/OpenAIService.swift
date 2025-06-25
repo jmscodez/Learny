@@ -188,26 +188,32 @@ final class OpenAIService {
     
     /// Generates topic-specific interest areas using AI
     func generateTopicSpecificInterests(for topic: String) async -> [InterestArea]? {
+        print("🤖 [AI DEBUG] Starting to generate interests for topic: '\(topic)'")
+        
         let prompt = """
         You are an expert curriculum designer. A user wants to learn about '\(topic)'. 
         
-        Generate 8 specific, relevant interest areas within this topic that would help personalize their learning experience. These should be:
-        - Specific to the topic (not generic)
-        - Diverse aspects/subtopics within the subject
-        - Engaging and clearly differentiated
-        - Suitable for someone wanting to learn about this topic
+        Generate 8 HIGHLY SPECIFIC interest areas within this topic. AVOID generic terms like "fundamentals", "basics", "key concepts", "practical applications", "advanced topics", "best practices", or "core concepts".
+        
+        Instead, focus on SPECIFIC aspects unique to \(topic). For example:
+        - If topic is "Soccer": use "Ball Control & Dribbling", "Tactical Formations", "Shooting Techniques", "Famous Players", etc.
+        - If topic is "Civil War": use "Causes & Origins", "Major Battles", "Key Figures", "Reconstruction Era", etc.
+        - If topic is "Cooking": use "Knife Skills", "Sauce Making", "Baking Techniques", "International Cuisines", etc.
+        
+        Requirements:
+        - Each title should be 2-4 words and SPECIFIC to \(topic)
+        - Avoid generic educational terms
+        - Focus on concrete, actionable subtopics
+        - Make them engaging and clearly differentiated
+        - Include diverse aspects of the subject
         
         For each interest area, provide:
-        - A clear, specific title (2-4 words)
-        - A brief description of what this area covers
-        - An appropriate SF Symbol icon name (like "book.fill", "star.fill", etc.)
-        - A color name (like "blue", "green", "red", "purple", "orange", "yellow", "cyan", "mint", "pink", "brown")
+        - 'title': Specific title (NO generic terms)
+        - 'description': Brief description of what this covers
+        - 'icon': SF Symbol name (like "soccerball", "figure.run", "target", "star.fill", etc.)
+        - 'color': Color name (blue, green, red, purple, orange, yellow, cyan, mint, pink, brown)
         
-        Your response MUST be a valid JSON object with a single key 'interests' containing an array of objects. Each object should have:
-        - 'title': string
-        - 'description': string  
-        - 'icon': string (SF Symbol name)
-        - 'color': string (color name)
+        Your response MUST be a valid JSON object with a single key 'interests' containing an array of objects.
         
         Do not include any other text, just the raw JSON.
         """
@@ -219,12 +225,25 @@ final class OpenAIService {
         let request = AIRequest(model: model, messages: messages, max_tokens: 1024, response_format: ["type": "json_object"])
         
         do {
+            print("🤖 [AI DEBUG] Making API request...")
             let data = try await performRequest(request)
+            print("🤖 [AI DEBUG] Received response data")
+            
             guard let aiResponse = try? JSONDecoder().decode(AIResponse.self, from: data),
-                  let contentString = aiResponse.choices.first?.message.content,
-                  let nestedData = contentString.data(using: .utf8) else {
+                  let contentString = aiResponse.choices.first?.message.content else {
+                print("🤖 [AI DEBUG] Failed to decode AI response or content is empty")
                 return nil
             }
+            
+            print("🤖 [AI DEBUG] Raw AI response: \(contentString)")
+            
+            guard let jsonString = extractJsonString(from: contentString),
+                  let nestedData = jsonString.data(using: .utf8) else {
+                print("🤖 [AI DEBUG] Failed to extract JSON from response")
+                return nil
+            }
+            
+            print("🤖 [AI DEBUG] Extracted JSON: \(jsonString)")
             
             struct InterestPayload: Decodable {
                 let interests: [AIInterestArea]
@@ -238,9 +257,10 @@ final class OpenAIService {
             }
             
             let payload = try JSONDecoder().decode(InterestPayload.self, from: nestedData)
+            print("🤖 [AI DEBUG] Successfully decoded \(payload.interests.count) interests")
             
             // Convert to InterestArea objects
-            return payload.interests.map { aiInterest in
+            let interestAreas = payload.interests.map { aiInterest in
                 InterestArea(
                     title: aiInterest.title,
                     icon: aiInterest.icon,
@@ -248,8 +268,13 @@ final class OpenAIService {
                     isSelected: false
                 )
             }
+            
+            print("🤖 [AI DEBUG] Generated interests: \(interestAreas.map { $0.title })")
+            return interestAreas
+            
         } catch {
-            print("AI Service Error during interest generation: \(error.localizedDescription)")
+            print("🤖 [AI DEBUG] Error during interest generation: \(error)")
+            print("🤖 [AI DEBUG] Error details: \(error.localizedDescription)")
             return nil
         }
     }
