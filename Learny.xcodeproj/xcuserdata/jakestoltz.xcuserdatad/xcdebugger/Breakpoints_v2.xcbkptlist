@@ -32,8 +32,38 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1404"
             endingLineNumber = "1404"
-            landmarkName = "EnhancedQuizView"
-            landmarkType = "14">
+            landmarkName = "performDrop(info:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "02344AF1-7B59-4859-94D5-3FB6D0AC2B2F - 5f7fec94fd973c80"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Learny.EnhancedQuizView.body.getter : some"
+                  moduleName = "Learny.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jakestoltz/Documents/Learny/Views/LessonPlayerView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "1405"
+                  endingLineNumber = "1405">
+               </Location>
+               <Location
+                  uuid = "02344AF1-7B59-4859-94D5-3FB6D0AC2B2F - ecad5bdcb93c7071"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.multilineTextAlignment(SwiftUI.TextAlignment) -&gt; some&gt;&gt;.0)&gt; in Learny.EnhancedMatchingGameView.successFeedback.getter : some"
+                  moduleName = "Learny.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jakestoltz/Documents/Learny/Views/LessonPlayerView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "1404"
+                  endingLineNumber = "1404">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

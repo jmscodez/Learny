@@ -42,7 +42,7 @@ final class LessonChatViewModel: ObservableObject {
             } else {
                 if let index = messages.firstIndex(where: { $0.id == thinkingMessage.id }) {
                     let errorMessage = "Sorry, I ran into an issue. Please try asking your question again."
-                    messages[index] = ChatMessage(role: .assistant, content: .aiError(errorMessage))
+                    messages[index] = ChatMessage(role: .assistant, content: .errorMessage(errorMessage))
                 }
             }
         }
