@@ -85,7 +85,7 @@ final class CourseChatViewModel: ObservableObject {
         let loadingMessage = ChatMessage(role: .assistant, content: .descriptiveLoading("Generating your first \(count) lesson ideas..."))
         messages.append(loadingMessage)
         
-        if let initialSuggestions = await aiService.generateInitialLessonIdeas(for: topic, count: count) {
+        if let initialSuggestions = await aiService.generateInitialLessonIdeas(for: topic, difficulty: difficulty, pace: pace, count: count) {
             messages.removeAll { $0.id == loadingMessage.id }
             
             self.lessonSuggestions = initialSuggestions
@@ -170,7 +170,7 @@ final class CourseChatViewModel: ObservableObject {
             let loadingMessage = ChatMessage(role: .assistant, content: .descriptiveLoading("Generating a few more suggestions..."))
             messages.append(loadingMessage)
 
-            if let newSuggestions = await aiService.generateInitialLessonIdeas(for: topic, count: 3) { // Generate a smaller batch
+            if let newSuggestions = await aiService.generateInitialLessonIdeas(for: topic, difficulty: difficulty, pace: pace, count: 3) { // Generate a smaller batch
                 messages.removeAll { $0.id == loadingMessage.id }
 
                 self.lessonSuggestions.append(contentsOf: newSuggestions)

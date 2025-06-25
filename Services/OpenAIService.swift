@@ -67,8 +67,33 @@ final class OpenAIService {
     private let endpointURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
 
     /// Generates the initial set of lesson ideas based on a topic.
-    func generateInitialLessonIdeas(for topic: String, count: Int = 5) async -> [LessonSuggestion]? {
-        let prompt = "You are an expert curriculum designer. A user wants to create a course about '\(topic)'. Generate \(count) diverse, high-level lesson ideas for this course. Your response MUST be a valid JSON object with a single key 'lessons' that contains an array of objects. Each object in the array should have a 'title' and a 'description' key. Do not include any other text, just the raw JSON."
+    func generateInitialLessonIdeas(for topic: String, difficulty: Difficulty = .beginner, pace: Pace = .balanced, count: Int = 5) async -> [LessonSuggestion]? {
+        let difficultyGuide = getDifficultyInstructions(for: difficulty)
+        let paceGuide = getPaceInstructions(for: pace)
+        
+        let prompt = """
+        You are an expert curriculum designer. A user wants to create a course about '\(topic)' with the following specifications:
+        
+        **DIFFICULTY LEVEL: \(difficulty.rawValue.uppercased())**
+        \(difficultyGuide)
+        
+        **PACE LEVEL: \(pace.rawValue.uppercased())**
+        \(paceGuide)
+        
+        Generate \(count) diverse, high-level lesson ideas for this course that match the specified difficulty and pace levels. 
+        
+        For \(difficulty.rawValue) level:
+        - Adjust the complexity and depth of topics accordingly
+        - Use appropriate terminology for the target audience
+        - Consider the assumed prior knowledge level
+        
+        For \(pace.rawValue) pace:
+        - Adjust the scope and depth of each lesson
+        - Consider the time investment per lesson
+        - Balance breadth vs depth appropriately
+        
+        Your response MUST be a valid JSON object with a single key 'lessons' that contains an array of objects. Each object in the array should have a 'title' and a 'description' key. Do not include any other text, just the raw JSON.
+        """
         return await generateSuggestions(with: prompt)
     }
     
@@ -208,11 +233,21 @@ final class OpenAIService {
     }
     
     /// Generates the rich, interactive screens for a full lesson.
-    func generateLessonScreens(for lessonTitle: String, topic: String) async -> [LessonScreen] {
+    func generateLessonScreens(for lessonTitle: String, topic: String, difficulty: Difficulty = .beginner, pace: Pace = .balanced) async -> [LessonScreen] {
+        let difficultyInstructions = getDifficultyInstructions(for: difficulty)
+        let paceInstructions = getPaceInstructions(for: pace)
+        let screenCount = getScreenCount(for: pace)
+        
         let prompt = """
         You are a world-class instructional designer, and your specialty is creating unforgettable, specific, and vivid learning experiences for a mobile app. Your goal is not to be generic, but to use concrete examples, names, and data to tell a compelling story.
 
         The course is about "\(topic)" and this lesson is titled "\(lessonTitle)".
+        
+        **DIFFICULTY LEVEL: \(difficulty.rawValue.uppercased())**
+        \(difficultyInstructions)
+        
+        **PACE LEVEL: \(pace.rawValue.uppercased())**
+        \(paceInstructions)
 
         **Your Core Principles:**
         1.  **Be Specific, Not Vague:** Instead of "players have influence," say "LeBron James' 'I PROMISE' school in Akron has provided resources for over 1,600 students." Use names, numbers, and specific events.
@@ -221,7 +256,7 @@ final class OpenAIService {
         4.  **Vary Interactivity:** Use a mix of screen types to keep the user engaged and active.
 
         Your response MUST be a valid JSON object with a single key, "screens".
-        The value of "screens" is an array of 5-8 screen objects. Each object must have a "type" and a "payload".
+        The value of "screens" is an array of \(screenCount) screen objects. Each object must have a "type" and a "payload".
 
         **Screen Types & How To Use Them Effectively:**
 
@@ -237,24 +272,36 @@ final class OpenAIService {
             -   `"payload": { "question": String, "answer": String }`
             -   **Usage:** Pose a "What happened next?" or "What was the result?" style question. The answer should be a surprising or impactful outcome.
 
-        4.  `"type": "fillInTheBlank"`
-            -   `"payload": { "promptStart": String, "promptEnd": String, "correctAnswer": String }`
-            -   **Usage:** Test a key term, name, or number that was just introduced.
+        4.  `"type": "multipleChoice"`
+            -   `"payload": { "question": String, "options": [String], "correctIndex": Int, "explanation": String }`
+            -   **Usage:** Test understanding with 3-4 options. The explanation should clarify why the answer is correct and why others are wrong.
 
-        5.  `"type": "dialogue"`
+        5.  `"type": "trueFalse"`
+            -   `"payload": { "statement": String, "isTrue": Bool, "explanation": String }`
+            -   **Usage:** Present a statement that challenges common assumptions or tests specific facts. Great for misconceptions.
+
+        6.  `"type": "dragToOrder"`
+            -   `"payload": { "instruction": String, "items": [String], "correctOrder": [Int] }`
+            -   **Usage:** Have users arrange events chronologically, steps in a process, or items by importance. Items should be meaningful and specific.
+
+        7.  `"type": "cardSort"`
+            -   `"payload": { "instruction": String, "categories": [String], "cards": [{ "text": String, "correctCategoryIndex": Int }] }`
+            -   **Usage:** Sort concepts, people, or examples into categories. Great for classification and understanding relationships.
+
+        8.  `"type": "dialogue"`
             -   `"payload": { "lines": [{ "speaker": String, "message": String }] }`
             -   **Usage:** Create a short, impactful exchange between real, named individuals. It could be a quote or a simulated conversation that reveals different perspectives.
 
-        6.  `"type": "matching"`
+        9.  `"type": "matching"`
             -   `"payload": { "pairs": [{ "term": String, "definition": String }] }`
             -   **Usage:** Help the user connect key concepts, people, or projects to their impact.
 
-        7.  `"type": "quiz"`
+        10. `"type": "quiz"`
             -   `"payload": { "questions": [{ "prompt": String, "options": [String], "correctIndex": Int }] }`
-            -   **Usage:** End the lesson by testing the specific, concrete information presented in the previous screens. The questions should not be generic.
+            -   **Usage:** End the lesson with EXACTLY 5 high-quality multiple-choice questions that test understanding of the content. Each question must have 4 options, be contextual to the lesson, and test comprehension rather than memorization. Students need 4 out of 5 correct to pass. Include explanations for correct answers where helpful.
 
         **Task:**
-        Generate a sequence of 5-8 screens for the lesson "\(lessonTitle)".
+        Generate a sequence of \(screenCount) screens for the lesson "\(lessonTitle)".
         Start with a "title" screen.
         End with a "quiz" screen.
         Return ONLY the raw JSON object, with no other text, markdown, or explanations.
@@ -292,6 +339,83 @@ final class OpenAIService {
             print("Error generating lesson screens: \(error)")
             // Consider returning a fallback lesson here
             return []
+        }
+    }
+    
+    // MARK: - Difficulty & Pace Customization
+    
+    private func getDifficultyInstructions(for difficulty: Difficulty) -> String {
+        switch difficulty {
+        case .beginner:
+            return """
+            - Use simple, everyday language and avoid jargon
+            - Explain concepts step-by-step with plenty of context
+            - Include lots of concrete examples and analogies
+            - Assume no prior knowledge of the topic
+            - Break complex ideas into smaller, digestible pieces
+            - Use encouraging, supportive tone
+            - Provide clear definitions for any necessary terms
+            """
+        case .intermediate:
+            return """
+            - Assume basic familiarity with core concepts
+            - Use moderate technical terminology with brief explanations
+            - Focus on relationships between concepts
+            - Include practical applications and real-world examples
+            - Move at a steady pace without excessive hand-holding
+            - Challenge users to make connections
+            - Balance theory with practice
+            """
+        case .advanced:
+            return """
+            - Use sophisticated language and technical terminology freely
+            - Assume strong foundational knowledge
+            - Dive deep into nuanced concepts and edge cases
+            - Explore theoretical frameworks and complex relationships
+            - Include expert-level insights and analysis
+            - Challenge assumptions and present multiple perspectives
+            - Minimal explanations of basic concepts
+            """
+        }
+    }
+    
+    private func getPaceInstructions(for pace: Pace) -> String {
+        switch pace {
+        case .quickReview:
+            return """
+            - Hit only the key highlights and main points
+            - Focus on essential concepts without extensive detail
+            - Use efficient, concise explanations
+            - Minimize deep exploration of subtopics
+            - Perfect for refreshing existing knowledge
+            - Prioritize breadth over depth
+            """
+        case .balanced:
+            return """
+            - Provide thorough explanations with good detail
+            - Include practical examples and interactive exercises
+            - Balance theory with application
+            - Allow time for concept absorption
+            - Mix different learning activities for engagement
+            - Most comprehensive learning experience
+            """
+        case .deepDive:
+            return """
+            - Explore topics in extensive detail
+            - Include multiple perspectives and viewpoints
+            - Cover subtopics, edge cases, and advanced applications
+            - Provide comprehensive analysis and context
+            - Use varied, rich examples and case studies
+            - Maximum depth and thoroughness
+            """
+        }
+    }
+    
+    private func getScreenCount(for pace: Pace) -> String {
+        switch pace {
+        case .quickReview: return "4-5"
+        case .balanced: return "6-8"
+        case .deepDive: return "8-12"
         }
     }
     

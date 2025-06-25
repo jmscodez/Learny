@@ -40,7 +40,7 @@ final class CourseGenerationManager: ObservableObject {
                     
                     statusMessage = "Creating lesson \(index + 1): \(suggestion.title)..."
                     // The new AI service call that generates all screens for a lesson at once.
-                    let screens = await aiService.generateLessonScreens(for: suggestion.title, topic: topic)
+                    let screens = await aiService.generateLessonScreens(for: suggestion.title, topic: topic, difficulty: difficulty, pace: pace)
                     
                     // A lesson needs at least one screen to be valid.
                     guard !screens.isEmpty else { continue }

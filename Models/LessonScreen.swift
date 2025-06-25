@@ -5,7 +5,10 @@ enum LessonScreen: Codable, Identifiable, Hashable {
     case title(TitleScreen)
     case info(InfoScreen)
     case tapToReveal(TapToRevealScreen)
-    case fillInTheBlank(FillInTheBlankScreen)
+    case multipleChoice(MultipleChoiceScreen)
+    case trueFalse(TrueFalseScreen)
+    case dragToOrder(DragToOrderScreen)
+    case cardSort(CardSortScreen)
     case dialogue(DialogueScreen)
     case matching(MatchingGame) // Reuse existing model
     case quiz(QuizScreen)
@@ -15,7 +18,10 @@ enum LessonScreen: Codable, Identifiable, Hashable {
         case .title(let screen): return screen.id
         case .info(let screen): return screen.id
         case .tapToReveal(let screen): return screen.id
-        case .fillInTheBlank(let screen): return screen.id
+        case .multipleChoice(let screen): return screen.id
+        case .trueFalse(let screen): return screen.id
+        case .dragToOrder(let screen): return screen.id
+        case .cardSort(let screen): return screen.id
         case .dialogue(let screen): return screen.id
         case .matching(let game): return game.id
         case .quiz(let screen): return screen.id
@@ -30,7 +36,7 @@ enum LessonScreen: Codable, Identifiable, Hashable {
     }
     
     enum ScreenType: String, Codable {
-        case title, info, tapToReveal, fillInTheBlank, dialogue, matching, quiz
+        case title, info, tapToReveal, multipleChoice, trueFalse, dragToOrder, cardSort, dialogue, matching, quiz
     }
     
     init(from decoder: Decoder) throws {
@@ -47,9 +53,18 @@ enum LessonScreen: Codable, Identifiable, Hashable {
         case .tapToReveal:
             let payload = try container.decode(TapToRevealScreen.self, forKey: .payload)
             self = .tapToReveal(payload)
-        case .fillInTheBlank:
-            let payload = try container.decode(FillInTheBlankScreen.self, forKey: .payload)
-            self = .fillInTheBlank(payload)
+        case .multipleChoice:
+            let payload = try container.decode(MultipleChoiceScreen.self, forKey: .payload)
+            self = .multipleChoice(payload)
+        case .trueFalse:
+            let payload = try container.decode(TrueFalseScreen.self, forKey: .payload)
+            self = .trueFalse(payload)
+        case .dragToOrder:
+            let payload = try container.decode(DragToOrderScreen.self, forKey: .payload)
+            self = .dragToOrder(payload)
+        case .cardSort:
+            let payload = try container.decode(CardSortScreen.self, forKey: .payload)
+            self = .cardSort(payload)
         case .dialogue:
             let payload = try container.decode(DialogueScreen.self, forKey: .payload)
             self = .dialogue(payload)
@@ -75,8 +90,17 @@ enum LessonScreen: Codable, Identifiable, Hashable {
         case .tapToReveal(let payload):
             try container.encode(ScreenType.tapToReveal, forKey: .type)
             try container.encode(payload, forKey: .payload)
-        case .fillInTheBlank(let payload):
-            try container.encode(ScreenType.fillInTheBlank, forKey: .type)
+        case .multipleChoice(let payload):
+            try container.encode(ScreenType.multipleChoice, forKey: .type)
+            try container.encode(payload, forKey: .payload)
+        case .trueFalse(let payload):
+            try container.encode(ScreenType.trueFalse, forKey: .type)
+            try container.encode(payload, forKey: .payload)
+        case .dragToOrder(let payload):
+            try container.encode(ScreenType.dragToOrder, forKey: .type)
+            try container.encode(payload, forKey: .payload)
+        case .cardSort(let payload):
+            try container.encode(ScreenType.cardSort, forKey: .type)
             try container.encode(payload, forKey: .payload)
         case .dialogue(let payload):
             try container.encode(ScreenType.dialogue, forKey: .type)
@@ -162,29 +186,133 @@ struct TapToRevealScreen: Codable, Identifiable, Hashable {
     }
 }
 
-struct FillInTheBlankScreen: Codable, Identifiable, Hashable {
+struct MultipleChoiceScreen: Codable, Identifiable, Hashable {
     var id = UUID()
-    let promptStart: String
-    let promptEnd: String
-    let correctAnswer: String
+    let question: String
+    let options: [String]
+    let correctIndex: Int
+    let explanation: String
     
     enum CodingKeys: String, CodingKey {
-        case promptStart, promptEnd, correctAnswer
+        case question, options, correctIndex, explanation
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.promptStart = try container.decode(String.self, forKey: .promptStart)
-        self.promptEnd = try container.decode(String.self, forKey: .promptEnd)
-        self.correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
+        self.question = try container.decode(String.self, forKey: .question)
+        self.options = try container.decode([String].self, forKey: .options)
+        self.correctIndex = try container.decode(Int.self, forKey: .correctIndex)
+        self.explanation = try container.decode(String.self, forKey: .explanation)
         self.id = UUID()
     }
 
-    init(id: UUID = UUID(), promptStart: String, promptEnd: String, correctAnswer: String) {
+    init(id: UUID = UUID(), question: String, options: [String], correctIndex: Int, explanation: String) {
         self.id = id
-        self.promptStart = promptStart
-        self.promptEnd = promptEnd
-        self.correctAnswer = correctAnswer
+        self.question = question
+        self.options = options
+        self.correctIndex = correctIndex
+        self.explanation = explanation
+    }
+}
+
+struct TrueFalseScreen: Codable, Identifiable, Hashable {
+    var id = UUID()
+    let statement: String
+    let isTrue: Bool
+    let explanation: String
+    
+    enum CodingKeys: String, CodingKey {
+        case statement, isTrue, explanation
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.statement = try container.decode(String.self, forKey: .statement)
+        self.isTrue = try container.decode(Bool.self, forKey: .isTrue)
+        self.explanation = try container.decode(String.self, forKey: .explanation)
+        self.id = UUID()
+    }
+    
+    init(id: UUID = UUID(), statement: String, isTrue: Bool, explanation: String) {
+        self.id = id
+        self.statement = statement
+        self.isTrue = isTrue
+        self.explanation = explanation
+    }
+}
+
+struct DragToOrderScreen: Codable, Identifiable, Hashable {
+    var id = UUID()
+    let instruction: String
+    let items: [String]
+    let correctOrder: [Int] // Indices representing correct order
+    
+    enum CodingKeys: String, CodingKey {
+        case instruction, items, correctOrder
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.instruction = try container.decode(String.self, forKey: .instruction)
+        self.items = try container.decode([String].self, forKey: .items)
+        self.correctOrder = try container.decode([Int].self, forKey: .correctOrder)
+        self.id = UUID()
+    }
+    
+    init(id: UUID = UUID(), instruction: String, items: [String], correctOrder: [Int]) {
+        self.id = id
+        self.instruction = instruction
+        self.items = items
+        self.correctOrder = correctOrder
+    }
+}
+
+struct CardSortScreen: Codable, Identifiable, Hashable {
+    var id = UUID()
+    let instruction: String
+    let categories: [String]
+    let cards: [SortCard]
+    
+    enum CodingKeys: String, CodingKey {
+        case instruction, categories, cards
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.instruction = try container.decode(String.self, forKey: .instruction)
+        self.categories = try container.decode([String].self, forKey: .categories)
+        self.cards = try container.decode([SortCard].self, forKey: .cards)
+        self.id = UUID()
+    }
+    
+    init(id: UUID = UUID(), instruction: String, categories: [String], cards: [SortCard]) {
+        self.id = id
+        self.instruction = instruction
+        self.categories = categories
+        self.cards = cards
+    }
+}
+
+struct SortCard: Codable, Identifiable, Hashable {
+    var id = UUID()
+    let text: String
+    let correctCategoryIndex: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case text, correctCategoryIndex
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.text = try container.decode(String.self, forKey: .text)
+        self.correctCategoryIndex = try container.decode(Int.self, forKey: .correctCategoryIndex)
+        self.id = UUID()
+    }
+    
+    init(id: UUID = UUID(), text: String, correctCategoryIndex: Int) {
+        self.id = id
+        self.text = text
+        self.correctCategoryIndex = correctCategoryIndex
     }
 }
 

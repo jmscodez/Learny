@@ -13,17 +13,23 @@ struct TopicInputView: View {
 
     private var difficultyDescription: String {
         switch difficulty {
-        case .beginner: return "Great for new learners. Covers the basics."
-        case .intermediate: return "Assumes some prior knowledge."
-        case .advanced: return "For experts looking for a deep dive."
+        case .beginner: 
+            return "🎯 Perfect for newcomers! Starts with fundamentals, uses simple language, includes lots of examples, and assumes no prior knowledge. Concepts are introduced step-by-step with plenty of context."
+        case .intermediate: 
+            return "⚡ Assumes basic familiarity with the topic. Moves at a moderate pace, introduces complex relationships between concepts, and includes some technical terminology. Great for building on existing knowledge."
+        case .advanced: 
+            return "🚀 For experts seeking deep understanding! Uses technical language, explores nuanced concepts, analyzes complex theories, and assumes strong foundational knowledge. Minimal hand-holding."
         }
     }
     
     private var paceDescription: String {
         switch pace {
-        case .quickReview: return "A fast-paced overview of the key topics."
-        case .balanced: return "A steady, comprehensive learning experience."
-        case .deepDive: return "An in-depth, thorough exploration of the subject."
+        case .quickReview: 
+            return "⚡ Fast-paced overview hitting the key highlights. Perfect for refreshing knowledge or getting familiar with main concepts quickly. Light on deep explanations."
+        case .balanced: 
+            return "🎯 Perfect middle ground! Thorough explanations with practical examples, interactive exercises, and time to absorb concepts. Most comprehensive learning experience."
+        case .deepDive: 
+            return "🔬 Comprehensive, in-depth exploration. Detailed analysis, multiple perspectives, extensive examples, and thorough coverage of subtopics. Maximum learning depth."
         }
     }
     
@@ -59,7 +65,8 @@ struct TopicInputView: View {
                                 Text(difficultyDescription)
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                    .frame(height: 30, alignment: .top)
+                                    .frame(minHeight: 40, alignment: .top)
+                                    .multilineTextAlignment(.leading)
                             }
                             
                             OptionGroupView(title: "Choose Pace") {
@@ -73,7 +80,8 @@ struct TopicInputView: View {
                                 Text(paceDescription)
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                    .frame(height: 30, alignment: .top)
+                                    .frame(minHeight: 40, alignment: .top)
+                                    .multilineTextAlignment(.leading)
                             }
                         }
 
