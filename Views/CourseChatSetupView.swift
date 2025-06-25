@@ -8,13 +8,12 @@ import SwiftUI
 // MARK: - Enhanced Course Builder Types
 
 enum OnboardingStep: Int, CaseIterable {
-    case welcome = 0
-    case experience = 1
-    case interests = 2
-    case timeCommitment = 3
-    case goals = 4
-    case generating = 5
-    case customization = 6
+    case experience = 0
+    case topicSelection = 1
+    case timeCommitment = 2
+    case chatCustomization = 3
+    case generating = 4
+    case customization = 5
 }
 
 struct LearningGoal: Identifiable {
@@ -39,7 +38,7 @@ struct InterestArea: Identifiable {
 
 struct CourseChatSetupView: View {
     @StateObject private var viewModel: EnhancedCourseChatViewModel
-    @State private var currentStep: OnboardingStep = .welcome
+    @State private var currentStep: OnboardingStep = .experience
     @State private var isFinalizing = false
     @State private var showingChat = false
     @State private var suggestionForDetail: LessonSuggestion?
@@ -75,7 +74,7 @@ struct CourseChatSetupView: View {
                 .animation(.easeInOut(duration: 0.5), value: currentStep)
                 
                 // Floating Chat Button (when appropriate)
-                if currentStep.rawValue >= OnboardingStep.customization.rawValue {
+                if currentStep.rawValue >= OnboardingStep.chatCustomization.rawValue {
                     floatingChatButton
                 }
             }
@@ -116,20 +115,15 @@ extension CourseChatSetupView {
     @ViewBuilder
     private func stepContentView(for step: OnboardingStep) -> some View {
         switch step {
-        case .welcome:
-            WelcomeStepView(
-                topic: viewModel.topic,
-                onContinue: { nextStep() }
-            )
         case .experience:
             ExperienceStepView(
                 selectedExperience: $viewModel.userExperience,
                 onContinue: { nextStep() }
             )
-        case .interests:
-            InterestsStepView(
+        case .topicSelection:
+            TopicSelectionStepView(
                 topic: viewModel.topic,
-                selectedInterests: $viewModel.selectedInterests,
+                selectedTopics: $viewModel.selectedTopics,
                 onContinue: { nextStep() }
             )
         case .timeCommitment:
@@ -138,9 +132,9 @@ extension CourseChatSetupView {
                 selectedFrequency: $viewModel.studyFrequency,
                 onContinue: { nextStep() }
             )
-        case .goals:
-            GoalsStepView(
-                selectedGoals: $viewModel.learningGoals,
+        case .chatCustomization:
+            ChatCustomizationStepView(
+                viewModel: viewModel,
                 onContinue: { generateCourse() }
             )
         case .generating:
@@ -332,10 +326,11 @@ struct AnimatedBackgroundView: View {
 @MainActor
 final class EnhancedCourseChatViewModel: ObservableObject {
     @Published var userExperience: String = ""
-    @Published var selectedInterests: [InterestArea] = []
+    @Published var selectedTopics: [String] = []
     @Published var preferredLessonTime: Int = 15
     @Published var studyFrequency: String = ""
-    @Published var learningGoals: [LearningGoal] = []
+    @Published var chatMessages: [ChatMessage] = []
+    @Published var userCustomizations: String = ""
     @Published var generationProgress: Double = 0.0
     @Published var suggestedLessons: [LessonSuggestion] = []
     @Published var selectedLessons: [LessonSuggestion] = []
@@ -355,28 +350,87 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     }
     
     func generatePersonalizedCourse() async {
-        isGenerating = true
-        generationProgress = 0.0
-        
-        // Simulate progress updates
-        for i in 1...10 {
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            generationProgress = Double(i) / 10.0
+        await MainActor.run {
+            isGenerating = true
+            generationProgress = 0.0
         }
         
-        // Generate actual lessons based on user preferences
-        if let lessons = await aiService.generatePersonalizedLessonIdeas(
-            for: topic,
-            difficulty: difficulty,
-            pace: pace,
-            experience: userExperience,
-            interests: selectedInterests.filter(\.isSelected).map(\.title),
-            goals: learningGoals.map(\.title),
-            timeCommitment: preferredLessonTime
-        ) {
-            suggestedLessons = lessons
+        // Create a background task for lesson generation
+        let generationTask = Task {
+            return await aiService.generatePersonalizedLessonIdeas(
+                for: topic,
+                difficulty: difficulty,
+                pace: pace,
+                experience: userExperience,
+                interests: selectedTopics,
+                goals: [],
+                timeCommitment: preferredLessonTime
+            )
         }
         
-        isGenerating = false
+        // Progress simulation task
+        let progressTask = Task {
+            for i in 1...10 {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                await MainActor.run {
+                    generationProgress = Double(i) / 10.0
+                }
+            }
+        }
+        
+        // Wait for lesson generation with timeout
+        let lessons: [LessonSuggestion]?
+        do {
+            lessons = try await withThrowingTaskGroup(of: [LessonSuggestion]?.self) { group in
+                group.addTask { await generationTask.value }
+                
+                // Add timeout task
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 30_000_000_000) // 30 second timeout
+                    throw NSError(domain: "GenerationTimeout", code: -1)
+                }
+                
+                for try await result in group {
+                    group.cancelAll()
+                    return result
+                }
+                return nil
+            }
+        } catch {
+            print("Course generation failed: \(error)")
+            lessons = nil
+        }
+        
+        // Wait for progress animation to complete
+        await progressTask.value
+        
+        await MainActor.run {
+            if let lessons = lessons {
+                suggestedLessons = lessons
+            } else {
+                // Provide fallback lessons on failure
+                suggestedLessons = generateFallbackLessons()
+            }
+            isGenerating = false
+        }
+    }
+    
+    private func generateFallbackLessons() -> [LessonSuggestion] {
+        return [
+            LessonSuggestion(title: "Introduction to \(topic)", description: "A foundational overview to get you started with the basics"),
+            LessonSuggestion(title: "Core Concepts", description: "Essential principles and ideas you need to understand"),
+            LessonSuggestion(title: "Practical Applications", description: "How to apply what you've learned in real-world situations"),
+            LessonSuggestion(title: "Advanced Techniques", description: "Taking your knowledge to the next level"),
+            LessonSuggestion(title: "Historical Context", description: "Understanding the background and evolution of the topic")
+        ]
+    }
+    
+    func addChatMessage(_ message: String) {
+        let chatMessage = ChatMessage(role: .user, content: .text(message))
+        chatMessages.append(chatMessage)
+        
+        // Simple AI response for now
+        let aiResponse = ChatMessage(role: .assistant, content: .text("I'll incorporate that into your course design: \(message)"))
+        chatMessages.append(aiResponse)
     }
 }

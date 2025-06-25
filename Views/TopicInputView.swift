@@ -205,19 +205,9 @@ struct TopicInputView: View {
                         // Main topic input with smart suggestions
                         topicInputSection
                         
-                        // Template gallery
-                        if !topic.isEmpty && !showAdvancedOptions {
-                            templateGallerySection
-                        }
-                        
-                        // Quick configuration section
-                        if !topic.isEmpty {
-                            quickConfigurationSection
-                        }
-                        
-                        // Advanced options
-                        if showAdvancedOptions {
-                            advancedOptionsSection
+                        // Popular topics for inspiration
+                        if topic.isEmpty {
+                            popularTopicsSection
                         }
                         
                         // Create button
@@ -342,6 +332,55 @@ struct TopicInputView: View {
             .padding(.horizontal, 20)
         }
     }
+    
+    // MARK: - Popular Topics Section
+    private var popularTopicsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Popular Topics")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
+                ForEach(popularTopics, id: \.title) { topicItem in
+                    Button(action: { 
+                        topic = topicItem.title
+                    }) {
+                        VStack(spacing: 8) {
+                            Image(systemName: topicItem.icon)
+                                .font(.title2)
+                                .foregroundColor(topicItem.color)
+                            
+                            Text(topicItem.title)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 80)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white.opacity(0.08))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(topicItem.color.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    private let popularTopics: [PopularTopic] = [
+        PopularTopic(title: "World History", icon: "globe", color: .blue),
+        PopularTopic(title: "Programming", icon: "laptopcomputer", color: .green),
+        PopularTopic(title: "Science", icon: "atom", color: .purple),
+        PopularTopic(title: "Languages", icon: "character.bubble", color: .orange),
+        PopularTopic(title: "Mathematics", icon: "function", color: .red),
+        PopularTopic(title: "Art & Design", icon: "paintbrush", color: .pink)
+    ]
     
     // MARK: - Template Gallery Section
     private var templateGallerySection: some View {
@@ -654,6 +693,12 @@ struct TopicInputView: View {
 }
 
 // MARK: - Supporting Views and Models
+
+struct PopularTopic {
+    let title: String
+    let icon: String
+    let color: Color
+}
 
 struct CourseTemplate: Identifiable {
     let id: UUID
