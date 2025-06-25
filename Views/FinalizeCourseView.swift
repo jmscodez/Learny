@@ -1,34 +1,5 @@
 import SwiftUI
 
-private struct GlowingButton: View {
-    let text: String
-    let action: () -> Void
-
-    @State private var isGlowing = false
-
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(.headline).bold()
-                .foregroundColor(.white)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.blue, Color.purple]),
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                )
-                .cornerRadius(16)
-                .shadow(color: .purple.opacity(isGlowing ? 0.8 : 0.2), radius: 10, y: 5)
-                .animation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: isGlowing)
-        }
-        .onAppear {
-            self.isGlowing = true
-        }
-    }
-}
-
 struct FinalizeCourseView: View {
     @EnvironmentObject private var generationManager: CourseGenerationManager
     @EnvironmentObject private var statsManager: LearningStatsManager
@@ -42,6 +13,8 @@ struct FinalizeCourseView: View {
     let onCancel: () -> Void
     let onGenerate: () -> Void
     
+    @State private var animationProgress: Double = 0
+    
     init(lessons: [LessonSuggestion], topic: String, difficulty: Difficulty, pace: Pace, onCancel: @escaping () -> Void, onGenerate: @escaping () -> Void) {
         self._lessons = State(initialValue: lessons)
         self.topic = topic
@@ -49,17 +22,6 @@ struct FinalizeCourseView: View {
         self.pace = pace
         self.onCancel = onCancel
         self.onGenerate = onGenerate
-
-        // Customize Navigation Bar Appearance to be consistently black with a cyan title
-        let appearance = UINavigationBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = .black
-        appearance.titleTextAttributes = [.foregroundColor: UIColor.cyan]
-        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.cyan]
-
-        UINavigationBar.appearance().standardAppearance = appearance
-        UINavigationBar.appearance().scrollEdgeAppearance = appearance
-        UINavigationBar.appearance().compactAppearance = appearance
     }
     
     // Supports swipe-to-delete
@@ -70,31 +32,90 @@ struct FinalizeCourseView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                // Consistent gradient background
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.05, green: 0.05, blue: 0.15),
+                        Color(red: 0.08, green: 0.1, blue: 0.2),
+                        Color(red: 0.1, green: 0.15, blue: 0.25)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
+                    // Header section
+                    VStack(spacing: 16) {
+                        Text("Finalize Your Course")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .scaleEffect(animationProgress)
+                        
+                        Text("Review and customize your \(lessons.count) selected lessons")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                            .opacity(animationProgress)
+                    }
+                    .padding(.top, 20)
+                    
+                    // Lessons list
                     ScrollView {
-                        VStack(spacing: 16) {
+                        LazyVStack(spacing: 16) {
                             ForEach(Array(lessons.enumerated()), id: \.element.id) { index, lesson in
-                                LessonRow(index: index + 1, lesson: lesson)
+                                ModernLessonRow(index: index + 1, lesson: lesson)
+                                    .opacity(animationProgress)
+                                    .offset(y: animationProgress == 1.0 ? 0 : 20)
+                                    .animation(.easeOut(duration: 0.6).delay(Double(index) * 0.1), value: animationProgress)
                             }
                         }
-                        .padding()
+                        .padding(.horizontal, 20)
                     }
-
-                    VStack(spacing: 12) {
-                        GlowingButton(text: "Generate Course", action: startGeneration)
+                    
+                    // Action buttons
+                    VStack(spacing: 16) {
+                        ModernGenerateButton(action: startGeneration)
+                            .scaleEffect(animationProgress)
+                            .opacity(animationProgress)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("Finalize Your Course")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel", action: onCancel)
+            .navigationBarHidden(true)
+            .overlay(
+                // Custom navigation bar
+                VStack {
+                    HStack {
+                        Button(action: onCancel) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "xmark")
+                                    .font(.title2)
+                                Text("Cancel")
+                                    .font(.headline)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.white.opacity(0.1))
+                            )
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    
+                    Spacer()
                 }
+            )
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.8)) {
+                animationProgress = 1.0
             }
         }
     }
@@ -112,40 +133,91 @@ struct FinalizeCourseView: View {
     }
 }
 
-private struct LessonRow: View {
+private struct ModernLessonRow: View {
     let index: Int
     let lesson: LessonSuggestion
     
     // Generate a consistent color from the lesson's ID
     private var color: Color {
-        let hash = lesson.id.hashValue
-        let hue = Double((hash & 0xFF0000) >> 16) / 255.0
-        let saturation = Double((hash & 0x00FF00) >> 8) / 255.0
-        return Color(hue: hue, saturation: saturation * 0.5 + 0.5, brightness: 0.8)
+        let colors: [Color] = [.blue, .purple, .green, .orange, .pink, .cyan]
+        return colors[lesson.id.hashValue % colors.count]
     }
     
     var body: some View {
         HStack(spacing: 16) {
-            Rectangle()
-                .fill(color)
-                .frame(width: 6)
-            
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Lesson \(index): \(lesson.title)")
+            // Lesson number
+            ZStack {
+                Circle()
+                    .fill(color)
+                    .frame(width: 32, height: 32)
+                
+                Text("\(index)")
                     .font(.headline)
+                    .fontWeight(.bold)
                     .foregroundColor(.white)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text(lesson.title)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                
                 Text(lesson.description)
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
+                    .lineLimit(3)
             }
+            
+            Spacer()
         }
-        .padding()
-        .background(Color(white: 0.1))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(color.opacity(0.3), lineWidth: 1)
+                )
         )
+    }
+}
+
+private struct ModernGenerateButton: View {
+    let action: () -> Void
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title2)
+                
+                Text("Generate Course")
+                    .font(.title2)
+                    .fontWeight(.bold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [.blue, .purple, .green]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(16)
+            .shadow(color: .blue.opacity(0.4), radius: 12, x: 0, y: 6)
+            .scaleEffect(isPressed ? 0.98 : 1.0)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = pressing
+            }
+        }, perform: {})
     }
 }
 

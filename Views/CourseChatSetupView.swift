@@ -70,11 +70,6 @@ struct CourseChatSetupView: View {
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.5), value: currentStep)
-                
-                // Floating Chat Button (when appropriate)
-                if currentStep.rawValue >= OnboardingStep.chatCustomization.rawValue {
-                    floatingChatButton
-                }
             }
         }
         .onAppear {
@@ -267,36 +262,6 @@ extension CourseChatSetupView {
         }
         .padding(.bottom, 8)
         .background(Color.white.opacity(0.05))
-    }
-    
-    private var floatingChatButton: some View {
-        HStack {
-            Spacer()
-            
-            Button(action: { showingChat = true }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "message.fill")
-                        .font(.title3)
-                    Text("Chat with AI")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(
-                    LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .clipShape(Capsule())
-                .shadow(color: .purple.opacity(0.4), radius: 8, y: 4)
-            }
-            .padding(.trailing, 20)
-            .padding(.bottom, 20)
-        }
     }
 }
 

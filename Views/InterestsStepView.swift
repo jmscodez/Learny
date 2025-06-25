@@ -68,7 +68,7 @@ struct InterestsStepView: View {
                     LoadingInterestCard()
                 }
             } else {
-                let interestsToShow = selectedInterests.isEmpty ? getInterestAreas(for: topic) : selectedInterests
+                let interestsToShow = selectedInterests.isEmpty ? getSmartInterestAreas(for: topic) : selectedInterests
                 ForEach(Array(interestsToShow.enumerated()), id: \.element.id) { index, interest in
                     InterestCard(
                         interest: binding(for: interest),
@@ -135,7 +135,7 @@ struct InterestsStepView: View {
         
         Task {
             print("📱 [UI DEBUG] Calling AI service...")
-            // Try to get AI-generated interests
+            // Always try to get AI-generated interests first
             if let aiInterests = await OpenAIService.shared.generateTopicSpecificInterests(for: topic) {
                 print("📱 [UI DEBUG] AI generated \(aiInterests.count) interests successfully")
                 await MainActor.run {
@@ -144,31 +144,42 @@ struct InterestsStepView: View {
                     print("📱 [UI DEBUG] Updated UI with AI interests")
                 }
             } else {
-                print("📱 [UI DEBUG] AI generation failed, using fallback")
-                // Fallback to hardcoded interests
+                print("📱 [UI DEBUG] AI generation failed, using smart fallback")
+                // Only use smart fallback if AI completely fails
                 await MainActor.run {
-                    selectedInterests = getInterestAreas(for: topic)
+                    selectedInterests = getSmartInterestAreas(for: topic)
                     isLoadingInterests = false
-                    print("📱 [UI DEBUG] Updated UI with fallback interests")
+                    print("📱 [UI DEBUG] Updated UI with smart fallback interests")
                 }
             }
         }
     }
     
-    private func getInterestAreas(for topic: String) -> [InterestArea] {
-        // Dynamic interest areas based on topic
+    private func getSmartInterestAreas(for topic: String) -> [InterestArea] {
+        // Enhanced smart fallback that's more adaptive to any topic
         let topicLower = topic.lowercased()
         
         if topicLower.contains("finance") || topicLower.contains("money") || topicLower.contains("invest") {
             return [
                 InterestArea(title: "Budgeting & Saving", icon: "dollarsign.circle.fill", color: .green),
-                InterestArea(title: "Investment Basics", icon: "chart.line.uptrend.xyaxis.circle.fill", color: .blue),
+                InterestArea(title: "Investment Strategies", icon: "chart.line.uptrend.xyaxis.circle.fill", color: .blue),
                 InterestArea(title: "Retirement Planning", icon: "clock.circle.fill", color: .orange),
                 InterestArea(title: "Real Estate", icon: "house.circle.fill", color: .purple),
-                InterestArea(title: "Tax Strategies", icon: "doc.text.fill", color: .red),
-                InterestArea(title: "Credit & Debt", icon: "creditcard.circle.fill", color: .yellow),
-                InterestArea(title: "Insurance", icon: "shield.fill", color: .cyan),
-                InterestArea(title: "Side Hustles", icon: "briefcase.circle.fill", color: .mint)
+                InterestArea(title: "Tax Optimization", icon: "doc.text.fill", color: .red),
+                InterestArea(title: "Credit Management", icon: "creditcard.circle.fill", color: .yellow),
+                InterestArea(title: "Insurance Planning", icon: "shield.fill", color: .cyan),
+                InterestArea(title: "Wealth Building", icon: "briefcase.circle.fill", color: .mint)
+            ]
+        } else if topicLower.contains("physics") {
+            return [
+                InterestArea(title: "Mechanics & Motion", icon: "car.fill", color: .blue),
+                InterestArea(title: "Energy & Forces", icon: "bolt.fill", color: .yellow),
+                InterestArea(title: "Waves & Vibrations", icon: "waveform", color: .green),
+                InterestArea(title: "Electricity & Magnetism", icon: "powerplug.fill", color: .purple),
+                InterestArea(title: "Light & Optics", icon: "lightbulb.fill", color: .orange),
+                InterestArea(title: "Thermodynamics", icon: "thermometer", color: .red),
+                InterestArea(title: "Quantum Physics", icon: "atom", color: .cyan),
+                InterestArea(title: "Applied Physics", icon: "gear", color: .mint)
             ]
         } else if topicLower.contains("program") || topicLower.contains("code") || topicLower.contains("software") {
             return [
@@ -191,17 +202,6 @@ struct InterestsStepView: View {
                 InterestArea(title: "Brand Strategy", icon: "star.fill", color: .yellow),
                 InterestArea(title: "E-commerce", icon: "cart.fill", color: .cyan),
                 InterestArea(title: "Customer Psychology", icon: "brain.head.profile", color: .mint)
-            ]
-        } else if topicLower.contains("physics") {
-            return [
-                InterestArea(title: "Mechanics & Motion", icon: "car.fill", color: .blue),
-                InterestArea(title: "Energy & Forces", icon: "bolt.fill", color: .yellow),
-                InterestArea(title: "Waves & Sound", icon: "waveform", color: .green),
-                InterestArea(title: "Electricity & Magnetism", icon: "powerplug.fill", color: .purple),
-                InterestArea(title: "Light & Optics", icon: "lightbulb.fill", color: .orange),
-                InterestArea(title: "Thermodynamics", icon: "thermometer", color: .red),
-                InterestArea(title: "Modern Physics", icon: "atom", color: .cyan),
-                InterestArea(title: "Real-World Applications", icon: "gear", color: .mint)
             ]
         } else if topicLower.contains("history") {
             return [
@@ -236,13 +236,25 @@ struct InterestsStepView: View {
                 InterestArea(title: "Youth Development", icon: "figure.run", color: .cyan),
                 InterestArea(title: "Fitness & Training", icon: "heart.fill", color: .pink)
             ]
-        } else {
-            // Fallback for any other topics
+        } else if topicLower.contains("nba") || topicLower.contains("basketball") {
             return [
-                InterestArea(title: "Core Concepts", icon: "book.fill", color: .blue),
-                InterestArea(title: "Practical Skills", icon: "wrench.and.screwdriver.fill", color: .green),
-                InterestArea(title: "Advanced Topics", icon: "graduationcap.fill", color: .purple),
-                InterestArea(title: "Case Studies", icon: "doc.text.magnifyingglass", color: .orange),
+                InterestArea(title: "Player Skills & Techniques", icon: "figure.basketball", color: .orange),
+                InterestArea(title: "Team Strategies & Tactics", icon: "rectangle.3.group", color: .blue),
+                InterestArea(title: "NBA History & Legends", icon: "star.fill", color: .yellow),
+                InterestArea(title: "Championship Analysis", icon: "trophy.fill", color: .purple),
+                InterestArea(title: "Player Development", icon: "figure.run", color: .green),
+                InterestArea(title: "Game Rules & Officiating", icon: "checkmark.seal.fill", color: .red),
+                InterestArea(title: "Draft & Trades", icon: "arrow.up.arrow.down", color: .cyan),
+                InterestArea(title: "Advanced Statistics", icon: "chart.bar.fill", color: .mint)
+            ]
+        } else {
+            // Smart generic fallback that adapts to any topic
+            let cleanTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines).capitalized
+            return [
+                InterestArea(title: "\(cleanTopic) Fundamentals", icon: "book.fill", color: .blue),
+                InterestArea(title: "Practical \(cleanTopic)", icon: "wrench.and.screwdriver.fill", color: .green),
+                InterestArea(title: "Advanced \(cleanTopic)", icon: "graduationcap.fill", color: .purple),
+                InterestArea(title: "\(cleanTopic) Case Studies", icon: "doc.text.magnifyingglass", color: .orange),
                 InterestArea(title: "Best Practices", icon: "checkmark.seal.fill", color: .red),
                 InterestArea(title: "Tools & Methods", icon: "hammer.fill", color: .yellow),
                 InterestArea(title: "Current Trends", icon: "chart.line.uptrend.xyaxis", color: .cyan),

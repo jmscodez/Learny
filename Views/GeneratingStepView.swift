@@ -32,23 +32,22 @@ struct GeneratingStepView: View {
     
     var body: some View {
         ZStack {
-            // Dynamic animated background
-            backgroundGradient
-            
-            // Floating particles
-            ForEach(particles, id: \.id) { particle in
-                Circle()
-                    .fill(particle.color.opacity(particle.opacity))
-                    .frame(width: particle.size, height: particle.size)
-                    .position(particle.position)
-                    .scaleEffect(particle.scale)
-                    .blur(radius: particle.blur)
-            }
+            // Simple static background
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: Color(red: 0.02, green: 0.05, blue: 0.3), location: 0),
+                    .init(color: Color(red: 0.05, green: 0.1, blue: 0.4), location: 0.5),
+                    .init(color: Color(red: 0.1, green: 0.2, blue: 0.6), location: 1)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
             VStack(spacing: 32) {
                 Spacer()
                 
-                // Main progress section
+                // Main progress section - simplified
                 progressSection
                 
                 // Title and description
@@ -59,10 +58,8 @@ struct GeneratingStepView: View {
                     currentLessonSection
                 }
                 
-                // Generation steps
-                if showingSteps {
-                    generationStepsSection
-                }
+                // Generation steps - simplified
+                generationStepsSection
                 
                 Spacer()
                 
@@ -72,8 +69,9 @@ struct GeneratingStepView: View {
             .padding(.horizontal, 24)
         }
         .onAppear {
-            startAnimations()
-            startGeneration()
+            withAnimation(.easeOut(duration: 0.8)) {
+                animationProgress = 1.0
+            }
         }
         .onChange(of: progress) { newProgress in
             updateCurrentStep(for: newProgress)
@@ -81,91 +79,40 @@ struct GeneratingStepView: View {
         }
     }
     
-    private var backgroundGradient: some View {
-        LinearGradient(
-            gradient: Gradient(stops: [
-                .init(color: Color(red: 0.02, green: 0.05, blue: 0.3), location: 0),
-                .init(color: Color(red: 0.05, green: 0.1, blue: 0.4), location: 0.3),
-                .init(color: Color(red: 0.08, green: 0.15, blue: 0.5), location: 0.6),
-                .init(color: Color(red: 0.1, green: 0.2, blue: 0.6), location: 1)
-            ]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-        .hueRotation(.degrees(animationProgress * 30))
-        .animation(.easeInOut(duration: 8).repeatForever(autoreverses: true), value: animationProgress)
-    }
-    
     private var progressSection: some View {
         ZStack {
-            // Outer glow ring
+            // Simple outer circle
             Circle()
-                .stroke(Color.white.opacity(0.1), lineWidth: 2)
-                .frame(width: 240, height: 240)
-                .scaleEffect(pulseAnimation ? 1.1 : 1.0)
-                .opacity(pulseAnimation ? 0.3 : 0.8)
+                .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                .frame(width: 200, height: 200)
             
-            // Progress ring
+            // Progress ring - simplified
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [.blue, .purple, .green, .yellow, .blue]),
-                        center: .center,
-                        startAngle: .degrees(-90),
-                        endAngle: .degrees(270)
+                    LinearGradient(
+                        gradient: Gradient(colors: [.blue, .purple, .green]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     ),
-                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
                 )
                 .frame(width: 200, height: 200)
                 .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 0.8), value: progress)
+                .animation(.easeInOut(duration: 0.5), value: progress)
             
-            // Inner content
-            VStack(spacing: 16) {
-                // AI Brain icon
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                gradient: Gradient(colors: [.blue.opacity(0.3), .clear]),
-                                center: .center,
-                                startRadius: 10,
-                                endRadius: 40
-                            )
-                        )
-                        .frame(width: 80, height: 80)
-                        .scaleEffect(pulseAnimation ? 1.2 : 1.0)
-                    
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 36, weight: .medium))
-                        .foregroundStyle(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.cyan, .blue, .purple]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .rotationEffect(.degrees(animationProgress * 10))
-                }
+            // Inner content - simplified
+            VStack(spacing: 12) {
+                // Simple brain icon
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundColor(.cyan)
                 
                 // Progress percentage
                 Text("\(Int(progress * 100))%")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.white, .cyan]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
                     .contentTransition(.numericText())
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                pulseAnimation = true
             }
         }
     }
@@ -229,30 +176,40 @@ struct GeneratingStepView: View {
     }
     
     private var generationStepsSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Text("Generation Progress")
                 .font(.headline)
                 .fontWeight(.semibold)
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(.white)
             
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 ForEach(Array(generationSteps.enumerated()), id: \.offset) { index, step in
-                    GenerationStepRow(
-                        step: step,
-                        isCompleted: index < currentStep,
-                        isActive: index == currentStep,
-                        animationDelay: Double(index) * 0.1
+                    HStack(spacing: 12) {
+                        Image(systemName: index <= currentStep ? "checkmark.circle.fill" : "circle")
+                            .font(.subheadline)
+                            .foregroundColor(index <= currentStep ? .green : .white.opacity(0.4))
+                        
+                        Text(step)
+                            .font(.subheadline)
+                            .foregroundColor(index <= currentStep ? .white : .white.opacity(0.6))
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(index <= currentStep ? Color.white.opacity(0.1) : Color.clear)
                     )
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 20)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.black.opacity(0.3))
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
         )
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
     
     private var actionButtonsSection: some View {

@@ -351,28 +351,49 @@ final class EnhancedCourseChatViewModel: ObservableObject {
             generationProgress = 1.0
             
             if let lessons = lessons {
-                // Combine AI-generated lessons with chat lessons
+                // Start with AI-generated lessons
                 var allLessons = lessons
                 
-                // Add chat lessons at the beginning and mark them as special
-                for chatLesson in chatLessons {
+                // Add chat lessons at the beginning with special markers
+                for (index, chatLesson) in chatLessons.enumerated() {
                     var specialLesson = chatLesson
                     specialLesson.title = "💬 " + specialLesson.title
                     specialLesson.description = "From AI Chat: " + specialLesson.description
-                    allLessons.insert(specialLesson, at: 0)
+                    specialLesson.isSelected = true // Auto-select chat lessons
+                    allLessons.insert(specialLesson, at: index)
                 }
                 
                 suggestedLessons = allLessons
                 
-                // Auto-select chat lessons plus desired count
+                // Auto-select appropriate lessons
                 let chatCount = chatLessons.count
-                let autoSelectCount = min(desiredLessonCount + chatCount, allLessons.count)
-                for i in 0..<autoSelectCount {
-                    suggestedLessons[i].isSelected = true
+                let totalToSelect = min(desiredLessonCount + chatCount, allLessons.count)
+                
+                for i in 0..<totalToSelect {
+                    if i < suggestedLessons.count {
+                        suggestedLessons[i].isSelected = true
+                    }
                 }
+                
+                print("📱 [COURSE DEBUG] Generated course with \(suggestedLessons.count) total lessons")
+                print("📱 [COURSE DEBUG] Chat lessons count: \(chatCount)")
+                print("📱 [COURSE DEBUG] Selected lessons count: \(selectedLessons.count)")
             } else {
-                // Fallback lessons if AI generation fails
-                suggestedLessons = createFallbackLessons()
+                // Fallback lessons with chat lessons included
+                var fallbackLessons = createFallbackLessons()
+                
+                // Add chat lessons to fallback
+                for (index, chatLesson) in chatLessons.enumerated() {
+                    var specialLesson = chatLesson
+                    specialLesson.title = "💬 " + specialLesson.title
+                    specialLesson.description = "From AI Chat: " + specialLesson.description
+                    specialLesson.isSelected = true
+                    fallbackLessons.insert(specialLesson, at: index)
+                }
+                
+                suggestedLessons = fallbackLessons
+                
+                print("📱 [COURSE DEBUG] Using fallback lessons with \(chatLessons.count) chat lessons")
             }
             
             isGenerating = false
@@ -412,11 +433,20 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     /// Adds a lesson based on AI chat discussion
     func addChatLesson(title: String, description: String) {
         let chatLesson = LessonSuggestion(
-            title: title,
+            title: "💬 " + title,
             description: description,
-            isSelected: true // Auto-select chat lessons
+            isSelected: false // Don't auto-select, let user choose
         )
+        
+        // Add to both arrays for proper tracking
         chatLessons.append(chatLesson)
+        
+        // Immediately add to suggested lessons so it appears in UI
+        DispatchQueue.main.async {
+            self.suggestedLessons.insert(chatLesson, at: 0) // Add at top
+            print("📱 [CHAT DEBUG] Added chat lesson: \(title)")
+            print("📱 [CHAT DEBUG] Total lessons now: \(self.suggestedLessons.count)")
+        }
     }
     
     /// Adds a discussion topic from AI chat
@@ -435,17 +465,6 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     
     private func generateLessonFromDiscussion(_ discussion: String) async -> LessonSuggestion? {
         // Use AI service to convert discussion into a lesson
-        let prompt = """
-        Based on this discussion about \(topic): "\(discussion)"
-        
-        Create a lesson with:
-        - A clear, specific title (max 60 characters)
-        - A detailed description explaining what the lesson will cover
-        
-        Make it practical and actionable for someone learning \(topic).
-        """
-        
-        // This would use the AI service to generate a lesson
         // For now, create a basic lesson from the discussion
         let words = discussion.split(separator: " ")
         let title = String(words.prefix(6).joined(separator: " "))
