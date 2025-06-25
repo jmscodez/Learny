@@ -11,6 +11,8 @@ struct InterestsStepView: View {
     let onContinue: () -> Void
     
     @State private var animationProgress: Double = 0
+    @State private var isLoadingInterests: Bool = false
+    @State private var aiGeneratedInterests: [InterestArea] = []
     
     var body: some View {
         ScrollView {
@@ -28,7 +30,7 @@ struct InterestsStepView: View {
         }
         .onAppear {
             if selectedInterests.isEmpty {
-                selectedInterests = getInterestAreas(for: topic)
+                loadInterestAreas()
             }
             
             withAnimation(.easeOut(duration: 0.8)) {
@@ -60,11 +62,22 @@ struct InterestsStepView: View {
     
     private var interestGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 16) {
-            ForEach(Array(getInterestAreas(for: topic).enumerated()), id: \.element.id) { index, interest in
-                InterestCard(
-                    interest: binding(for: interest),
-                    animationDelay: Double(index) * 0.05
-                )
+            if isLoadingInterests {
+                // Loading state
+                ForEach(0..<8, id: \.self) { index in
+                    LoadingInterestCard()
+                        .opacity(animationProgress)
+                        .offset(y: animationProgress == 1.0 ? 0 : 20)
+                        .animation(.easeOut(duration: 0.6).delay(Double(index) * 0.1), value: animationProgress)
+                }
+            } else {
+                let interestsToShow = selectedInterests.isEmpty ? getInterestAreas(for: topic) : selectedInterests
+                ForEach(Array(interestsToShow.enumerated()), id: \.element.id) { index, interest in
+                    InterestCard(
+                        interest: binding(for: interest),
+                        animationDelay: Double(index) * 0.05
+                    )
+                }
             }
         }
         .padding(.horizontal, 20)
@@ -115,6 +128,26 @@ struct InterestsStepView: View {
             return .constant(interest)
         }
         return $selectedInterests[index]
+    }
+    
+    private func loadInterestAreas() {
+        isLoadingInterests = true
+        
+        Task {
+            // Try to get AI-generated interests
+            if let aiInterests = await OpenAIService.shared.generateTopicSpecificInterests(for: topic) {
+                await MainActor.run {
+                    selectedInterests = aiInterests
+                    isLoadingInterests = false
+                }
+            } else {
+                // Fallback to hardcoded interests
+                await MainActor.run {
+                    selectedInterests = getInterestAreas(for: topic)
+                    isLoadingInterests = false
+                }
+            }
+        }
     }
     
     private func getInterestAreas(for topic: String) -> [InterestArea] {
@@ -308,4 +341,74 @@ struct InterestCard: View {
             endPoint: .bottomTrailing
         )
     )
+}
+
+struct LoadingInterestCard: View {
+    @State private var shimmerOffset: CGFloat = -200
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Icon placeholder
+            Circle()
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.0),
+                                    Color.white.opacity(0.1),
+                                    Color.white.opacity(0.0)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .offset(x: shimmerOffset)
+                        .clipped()
+                )
+            
+            // Title placeholder
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.0),
+                                    Color.white.opacity(0.1),
+                                    Color.white.opacity(0.0)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .offset(x: shimmerOffset)
+                        .clipped()
+                )
+            
+            // Selection indicator placeholder
+            Circle()
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 16, height: 16)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 120)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .onAppear {
+            withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                shimmerOffset = 200
+            }
+        }
+    }
 } 

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Data Structures for AI Service
 
@@ -183,6 +184,74 @@ final class OpenAIService {
             question: "Interesting! Can you tell me a bit more about what aspects of '\(userQuery)' you'd like to focus on?",
             options: ["The basics", "Advanced concepts", "Historical context"]
         )
+    }
+    
+    /// Generates topic-specific interest areas using AI
+    func generateTopicSpecificInterests(for topic: String) async -> [InterestArea]? {
+        let prompt = """
+        You are an expert curriculum designer. A user wants to learn about '\(topic)'. 
+        
+        Generate 8 specific, relevant interest areas within this topic that would help personalize their learning experience. These should be:
+        - Specific to the topic (not generic)
+        - Diverse aspects/subtopics within the subject
+        - Engaging and clearly differentiated
+        - Suitable for someone wanting to learn about this topic
+        
+        For each interest area, provide:
+        - A clear, specific title (2-4 words)
+        - A brief description of what this area covers
+        - An appropriate SF Symbol icon name (like "book.fill", "star.fill", etc.)
+        - A color name (like "blue", "green", "red", "purple", "orange", "yellow", "cyan", "mint", "pink", "brown")
+        
+        Your response MUST be a valid JSON object with a single key 'interests' containing an array of objects. Each object should have:
+        - 'title': string
+        - 'description': string  
+        - 'icon': string (SF Symbol name)
+        - 'color': string (color name)
+        
+        Do not include any other text, just the raw JSON.
+        """
+        
+        let messages = [
+            AIMessage(role: "user", content: prompt)
+        ]
+        
+        let request = AIRequest(model: model, messages: messages, max_tokens: 1024, response_format: ["type": "json_object"])
+        
+        do {
+            let data = try await performRequest(request)
+            guard let aiResponse = try? JSONDecoder().decode(AIResponse.self, from: data),
+                  let contentString = aiResponse.choices.first?.message.content,
+                  let nestedData = contentString.data(using: .utf8) else {
+                return nil
+            }
+            
+            struct InterestPayload: Decodable {
+                let interests: [AIInterestArea]
+            }
+            
+            struct AIInterestArea: Decodable {
+                let title: String
+                let description: String
+                let icon: String
+                let color: String
+            }
+            
+            let payload = try JSONDecoder().decode(InterestPayload.self, from: nestedData)
+            
+            // Convert to InterestArea objects
+            return payload.interests.map { aiInterest in
+                InterestArea(
+                    title: aiInterest.title,
+                    icon: aiInterest.icon,
+                    color: colorFromString(aiInterest.color),
+                    isSelected: false
+                )
+            }
+        } catch {
+            print("AI Service Error during interest generation: \(error.localizedDescription)")
+            return nil
+        }
     }
     
     /// Generates personalized lesson ideas based on comprehensive user preferences.
@@ -707,6 +776,26 @@ final class OpenAIService {
             return ["Real-world applications", "Latest discoveries", "Hands-on experiments"]
         } else {
             return ["Practical examples", "Advanced concepts", "Real-world applications"]
+        }
+    }
+    
+    /// Helper function to convert color string to SwiftUI Color
+    private func colorFromString(_ colorString: String) -> Color {
+        switch colorString.lowercased() {
+        case "blue": return .blue
+        case "green": return .green
+        case "red": return .red
+        case "purple": return .purple
+        case "orange": return .orange
+        case "yellow": return .yellow
+        case "cyan": return .cyan
+        case "mint": return .mint
+        case "pink": return .pink
+        case "brown": return .brown
+        case "gray", "grey": return .gray
+        case "black": return .black
+        case "white": return .white
+        default: return .blue // Default fallback
         }
     }
 } 
