@@ -44,7 +44,7 @@ final class CourseChatViewModel: ObservableObject {
         
         messages.append(ChatMessage(
             role: .assistant,
-            content: .lessonCountOptions
+            content: .lessonCountOptions(["3-5 lessons", "6-8 lessons", "9-12 lessons", "15+ lessons"])
         ))
     }
     
@@ -58,7 +58,10 @@ final class CourseChatViewModel: ObservableObject {
         messages.append(ChatMessage(role: .user, content: .text(option)))
         
         // 2. Remove the interactive options.
-        messages.removeAll { $0.content == .lessonCountOptions }
+        messages.removeAll { 
+            if case .lessonCountOptions = $0.content { return true }
+            return false
+        }
         
         // 3. Trigger the AI's response asynchronously.
         Task {
@@ -80,7 +83,7 @@ final class CourseChatViewModel: ObservableObject {
     /// Also used by the "Retry" button.
     func generateAndDisplayInitialSuggestions(count: Int = 7) async {
         // Clear any previous error messages
-        messages.removeAll { if case .aiError = $0.content { return true }; return false }
+        messages.removeAll { if case .errorMessage = $0.content { return true }; return false }
         
         let loadingMessage = ChatMessage(role: .assistant, content: .descriptiveLoading("Generating your first \(count) lesson ideas..."))
         messages.append(loadingMessage)
@@ -89,18 +92,18 @@ final class CourseChatViewModel: ObservableObject {
             messages.removeAll { $0.id == loadingMessage.id }
             
             self.lessonSuggestions = initialSuggestions
-            messages.append(ChatMessage(role: .assistant, content: .lessonSuggestions))
+            messages.append(ChatMessage(role: .assistant, content: .lessonSuggestions(initialSuggestions)))
             canShowSuggestions = true
             
             // Add the final, prominent prompt
             try? await Task.sleep(nanoseconds: 500_000_000)
-            messages.append(ChatMessage(role: .assistant, content: .finalPrompt))
+            messages.append(ChatMessage(role: .assistant, content: .finalPrompt("Looking good! Select the lessons you're excited about, or ask me to generate more ideas if you'd like different options.")))
             messages.append(ChatMessage(role: .assistant, content: .generateMoreIdeasButton))
         } else {
             // Handle generation failure
             messages.removeAll { $0.id == loadingMessage.id }
             let errorMessage = "Sorry, I couldn't generate lesson ideas for '\(topic)' right now. Please check your connection or try again."
-            messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+            messages.append(ChatMessage(role: .assistant, content: .errorMessage(errorMessage)))
         }
     }
     
@@ -126,7 +129,11 @@ final class CourseChatViewModel: ObservableObject {
             messages.removeAll { $0.id == loadingMessage.id }
 
             messages.append(ChatMessage(role: .assistant, content: .text(clarification.question)))
-            messages.append(ChatMessage(role: .assistant, content: .clarificationOptions(originalQuery: text, options: clarification.options)))
+            
+            let clarificationOptions = clarification.options.map { option in
+                ClarificationOption(key: text, value: option)
+            }
+            messages.append(ChatMessage(role: .assistant, content: .clarificationOptions(clarificationOptions)))
         }
     }
     
@@ -149,16 +156,15 @@ final class CourseChatViewModel: ObservableObject {
                 
                 // Add new suggestions to the main list
                 self.lessonSuggestions.append(contentsOf: followUpSuggestions)
-                let suggestionIDs = followUpSuggestions.map { $0.id }
                 
                 let responseText = "Perfect. Based on your interest in '\(response)', here are a few lesson ideas I've come up with:"
                 messages.append(ChatMessage(role: .assistant, content: .text(responseText)))
                 
-                messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(suggestionIDs)))
+                messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(followUpSuggestions)))
             } else {
                 messages.removeAll { $0.id == loadingMessage.id }
                 let errorMessage = "Sorry, I couldn't generate ideas for that. Could you try rephrasing?"
-                messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+                messages.append(ChatMessage(role: .assistant, content: .errorMessage(errorMessage)))
             }
         }
     }
@@ -174,21 +180,23 @@ final class CourseChatViewModel: ObservableObject {
                 messages.removeAll { $0.id == loadingMessage.id }
 
                 self.lessonSuggestions.append(contentsOf: newSuggestions)
-                let suggestionIDs = newSuggestions.map { $0.id }
 
                 let responseText = "Of course! Here are a few more ideas:"
                 messages.append(ChatMessage(role: .assistant, content: .text(responseText)))
                 
-                messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(suggestionIDs)))
+                messages.append(ChatMessage(role: .assistant, content: .inlineLessonSuggestions(newSuggestions)))
                 
                 // Ensure we only have one final prompt at a time
-                messages.removeAll { $0.content == .finalPrompt }
-                messages.append(ChatMessage(role: .assistant, content: .finalPrompt))
+                messages.removeAll { 
+                    if case .finalPrompt = $0.content { return true }
+                    return false
+                }
+                messages.append(ChatMessage(role: .assistant, content: .finalPrompt("Select your favorites, or let me know if you'd like different ideas!")))
                 messages.append(ChatMessage(role: .assistant, content: .generateMoreIdeasButton))
             } else {
                 messages.removeAll { $0.id == loadingMessage.id }
                 let errorMessage = "Sorry, I couldn't generate more ideas right now. Please try again in a moment."
-                messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+                messages.append(ChatMessage(role: .assistant, content: .errorMessage(errorMessage)))
             }
         }
     }
@@ -206,7 +214,7 @@ final class CourseChatViewModel: ObservableObject {
             } else {
                 // Handle failure - maybe show an alert or a temporary error message in the chat
                 let errorMessage = "Sorry, I couldn't swap that suggestion. Please try again."
-                messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+                messages.append(ChatMessage(role: .assistant, content: .errorMessage(errorMessage)))
             }
             
             swappingLessonID = nil
@@ -269,7 +277,7 @@ final class CourseChatViewModel: ObservableObject {
         } else {
             messages.removeAll { $0.id == loadingMessage.id }
             let errorMessage = "Sorry, I couldn't add the final lessons to your plan. You can continue to the next step, or try generating more ideas manually."
-            messages.append(ChatMessage(role: .assistant, content: .aiError(errorMessage)))
+            messages.append(ChatMessage(role: .assistant, content: .errorMessage(errorMessage)))
         }
     }
 } 

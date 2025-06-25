@@ -131,7 +131,7 @@ private struct ChatBubble: View {
                             .foregroundColor(.white)
                     case .thinkingIndicator:
                         ThinkingIndicatorView()
-                    case .aiError(let text):
+                    case .errorMessage(let text):
                         Text("Error: \(text)")
                             .foregroundColor(.red)
                     default:

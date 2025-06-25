@@ -522,7 +522,7 @@ struct ModernTextBubble: View {
                     .fill(
                         isUser ? 
                         LinearGradient(colors: [.blue.opacity(0.8), .purple.opacity(0.8)], startPoint: .leading, endPoint: .trailing) :
-                        Color.white.opacity(0.1)
+                        LinearGradient(colors: [.white.opacity(0.1), .white.opacity(0.1)], startPoint: .leading, endPoint: .trailing)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
