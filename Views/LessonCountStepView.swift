@@ -49,6 +49,13 @@ struct LessonCountStepView: View {
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .opacity(animationProgress)
+                    
+                    Text("💡 Don't worry - you can always generate more lessons later!")
+                        .font(.caption)
+                        .foregroundColor(.blue.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                        .opacity(animationProgress)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)

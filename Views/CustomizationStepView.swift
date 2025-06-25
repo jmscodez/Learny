@@ -33,14 +33,15 @@ struct CustomizationStepView: View {
             ZStack {
                 // Main content
                 ScrollView {
-                    VStack(spacing: 32) {
-                        Spacer(minLength: 20)
+                    VStack(spacing: 24) {
+                        Spacer(minLength: 16)
                         
                         headerSection
-                        courseStatsSection
+                        compactCourseStatsSection
+                        selectedLessonsPreview
                         lessonGridSection
                         
-                        Spacer(minLength: 120) // Space for fixed generate button
+                        Spacer(minLength: 100) // Space for fixed generate button
                     }
                 }
                 
@@ -74,10 +75,10 @@ struct CustomizationStepView: View {
     }
     
     private var headerSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             HStack {
                 Image(systemName: "sparkles")
-                    .font(.title)
+                    .font(.title2)
                     .foregroundStyle(
                         LinearGradient(
                             colors: [.blue, .purple],
@@ -87,51 +88,101 @@ struct CustomizationStepView: View {
                     )
                 
                 Text("Your Course is Ready!")
-                    .font(.largeTitle)
+                    .font(.title)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
             }
             .scaleEffect(animationProgress)
             .opacity(animationProgress)
             
-            Text("We've crafted **\(viewModel.suggestedLessons.count) personalized lessons** based on your preferences. Select the ones you're excited about!")
-                .font(.title3)
+            Text("We've crafted **\(viewModel.suggestedLessons.count) personalized lessons** based on your preferences.")
+                .font(.subheadline)
                 .foregroundColor(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 24)
                 .opacity(animationProgress)
         }
     }
     
-    private var courseStatsSection: some View {
-        VStack(spacing: 16) {
-            Text("Course Overview")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private var compactCourseStatsSection: some View {
+        HStack(spacing: 12) {
+            CompactStatCard(
+                icon: "book.fill",
+                title: "Lessons",
+                value: "\(selectedCount)/\(viewModel.suggestedLessons.count)",
+                color: .blue
+            )
             
-            HStack(spacing: 20) {
-                StatCard(
-                    icon: "book.fill",
-                    title: "Lessons",
-                    value: "\(selectedCount)/\(viewModel.suggestedLessons.count)",
-                    color: .blue
-                )
+            CompactStatCard(
+                icon: "clock.fill",
+                title: "Est. Time",
+                value: formatTime(totalEstimatedTime),
+                color: .green
+            )
+            
+            CompactStatCard(
+                icon: "target",
+                title: "Progress",
+                value: selectedCount > 0 ? "Ready" : "Select",
+                color: .purple
+            )
+        }
+        .padding(.horizontal, 20)
+        .opacity(animationProgress)
+    }
+    
+    private var selectedLessonsPreview: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Selected Lessons")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
                 
-                StatCard(
-                    icon: "clock.fill",
-                    title: "Est. Time",
-                    value: formatTime(totalEstimatedTime),
-                    color: .green
-                )
+                Spacer()
                 
-                StatCard(
-                    icon: "target",
-                    title: "Progress",
-                    value: selectedCount > 0 ? "Ready" : "0%",
-                    color: .purple
-                )
+                Text("\(selectedCount) lessons • \(formatTime(totalEstimatedTime))")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.1))
+                    )
+            }
+            
+            if selectedCount > 0 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(viewModel.selectedLessons.prefix(3), id: \.id) { lesson in
+                            SelectedLessonChip(lesson: lesson)
+                        }
+                        
+                        if selectedCount > 3 {
+                            Text("+\(selectedCount - 3) more")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white.opacity(0.7))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.white.opacity(0.1))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                        )
+                                )
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            } else {
+                Text("Select lessons below to get started")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.6))
+                    .italic()
             }
         }
         .padding(.horizontal, 20)
@@ -139,7 +190,7 @@ struct CustomizationStepView: View {
     }
     
     private var lessonGridSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             lessonSectionHeader
             lessonGrid
         }
@@ -154,8 +205,14 @@ struct CustomizationStepView: View {
             
             Spacer()
             
-            HStack(spacing: 12) {
-                generateMoreButton
+            HStack(spacing: 8) {
+                FloatingActionButton(
+                    icon: "plus.circle.fill",
+                    text: "Generate More",
+                    colors: [.purple, .blue],
+                    action: { showingGenerateOptions = true }
+                )
+                
                 showAllButton
             }
         }
@@ -163,30 +220,51 @@ struct CustomizationStepView: View {
         .opacity(animationProgress)
     }
     
-    private var generateMoreButton: some View {
+    private var showAllButton: some View {
         Button(action: {
-            showingGenerateOptions = true
-        }) {
-            HStack(spacing: 8) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3)
-                Text("Generate More")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+            withAnimation(.spring()) {
+                showingAllLessons.toggle()
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+        }) {
+            HStack(spacing: 6) {
+                Text(showingAllLessons ? "Show Less" : "Show All")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .rotationEffect(.degrees(showingAllLessons ? 180 : 0))
+            }
+            .foregroundColor(.blue)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [.purple, .blue]),
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.blue.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
             )
-            .cornerRadius(20)
-            .shadow(color: .purple.opacity(0.3), radius: 6, x: 0, y: 3)
         }
+    }
+    
+    private var lessonGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible())], spacing: 12) {
+            ForEach(displayedLessons.indices, id: \.self) { index in
+                let lesson = displayedLessons[index]
+                LessonSelectionCard(
+                    lesson: lesson,
+                    isSelected: viewModel.selectedLessons.contains { $0.id == lesson.id },
+                    onToggle: { toggleLessonSelection(lesson) },
+                    onShowDetail: { onShowDetail(lesson) }
+                )
+                .opacity(animationProgress)
+                .offset(y: animationProgress == 1.0 ? 0 : 20)
+                .animation(.easeOut(duration: 0.6).delay(Double(index) * 0.1), value: animationProgress)
+            }
+        }
+        .padding(.horizontal, 20)
         .alert("Generate More Lessons", isPresented: $showingGenerateOptions) {
             Button("💬 AI Chat for Ideas") {
                 showingAIChatModal = true
@@ -200,134 +278,86 @@ struct CustomizationStepView: View {
         }
     }
     
-    @ViewBuilder
-    private var showAllButton: some View {
-        if viewModel.suggestedLessons.count > 6 {
-            Button(action: {
-                withAnimation(.spring()) {
-                    showingAllLessons.toggle()
-                }
-            }) {
-                HStack(spacing: 4) {
-                    Text(showingAllLessons ? "Show Less" : "Show All")
-                        .font(.subheadline)
-                    Image(systemName: showingAllLessons ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                }
-                .foregroundColor(.blue)
-            }
-        }
-    }
-    
-    private var lessonGrid: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ],
-            spacing: 16
-        ) {
-            ForEach(Array(displayedLessons.enumerated()), id: \.element.id) { index, lesson in
-                PersonalizedLessonCard(
-                    lesson: binding(for: lesson),
-                    animationDelay: Double(index) * 0.05,
-                    onShowDetail: { onShowDetail(lesson) }
-                )
-            }
-        }
-        .padding(.horizontal, 20)
-    }
-    
     private var generateCourseButtonSection: some View {
-        VStack(spacing: 0) {
-            // Gradient overlay to blend with content
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: Color.clear, location: 0),
-                    .init(color: Color.black.opacity(0.2), location: 0.7),
-                    .init(color: Color.black.opacity(0.4), location: 1)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 40)
-            
-            VStack(spacing: 16) {
+        VStack(spacing: 12) {
+            if selectedCount > 0 {
                 // Course summary
-                if selectedCount > 0 {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Ready to Generate")
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(selectedCount) lessons selected")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                        
+                        Text("Estimated time: \(formatTime(totalEstimatedTime))")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: onFinalize) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "sparkles")
+                                .font(.headline)
+                            
+                            Text("Generate Course")
                                 .font(.headline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                            
-                            Text("\(selectedCount) lessons • ~\(formatTime(totalEstimatedTime))")
-                                .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.8))
                         }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.green)
-                    }
-                    .padding(.horizontal, 24)
-                }
-                
-                // Generate button
-                Button(action: onFinalize) {
-                    HStack {
-                        Image(systemName: "sparkles")
-                            .font(.headline)
-                        
-                        Text("Generate Course")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        Image(systemName: "arrow.right")
-                            .font(.headline)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: selectedCount > 0 ? [.green, .blue] : [.gray, .gray.opacity(0.8)]),
-                            startPoint: .leading,
-                            endPoint: .trailing
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.blue, .purple, .green]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .cornerRadius(16)
-                    .shadow(color: selectedCount > 0 ? .green.opacity(0.3) : .clear, radius: 8, x: 0, y: 4)
+                        .cornerRadius(25)
+                        .shadow(color: .blue.opacity(0.4), radius: 8, x: 0, y: 4)
+                    }
+                    .scaleEffect(animationProgress)
                 }
-                .disabled(selectedCount == 0)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.black.opacity(0.3))
+                        .background(Color.black.opacity(0.3))
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 34)
+            } else {
+                Text("Select at least one lesson to continue")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.6))
+                    .padding(.bottom, 34)
             }
-            .padding(.bottom, 32)
-            .background(
-                Rectangle()
-                    .fill(Color.black.opacity(0.3))
-                    .blur(radius: 20)
-            )
         }
     }
     
-    private func binding(for lesson: LessonSuggestion) -> Binding<LessonSuggestion> {
-        guard let index = viewModel.suggestedLessons.firstIndex(where: { $0.id == lesson.id }) else {
-            return .constant(lesson)
+    // MARK: - Helper Functions
+    
+    private func toggleLessonSelection(_ lesson: LessonSuggestion) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            if let index = viewModel.suggestedLessons.firstIndex(where: { $0.id == lesson.id }) {
+                viewModel.suggestedLessons[index].isSelected.toggle()
+            }
         }
-        return $viewModel.suggestedLessons[index]
     }
     
     private func generateMoreLessons() {
-        // Implementation for generating more lessons
+        isGeneratingMore = true
+        
         Task {
-            isGeneratingMore = true
-            // Add your lesson generation logic here
             await viewModel.generateAdditionalLessons()
-            isGeneratingMore = false
+            await MainActor.run {
+                withAnimation(.spring()) {
+                    isGeneratingMore = false
+                }
+            }
         }
     }
     
@@ -348,7 +378,7 @@ struct CustomizationStepView: View {
 
 // MARK: - Supporting Views
 
-struct StatCard: View {
+struct CompactStatCard: View {
     let icon: String
     let title: String
     let value: String
@@ -360,136 +390,192 @@ struct StatCard: View {
                 .font(.title2)
                 .foregroundColor(color)
             
+            Text(value)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+            
             Text(title)
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.7))
-            
-            Text(value)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.1))
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 16)
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )
         )
     }
 }
 
+struct SelectedLessonChip: View {
+    let lesson: LessonSuggestion
+    
+    var body: some View {
+        Text(lesson.title)
+            .font(.caption)
+            .fontWeight(.medium)
+            .foregroundColor(.white)
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+            )
+    }
+}
+
+struct FloatingActionButton: View {
+    let icon: String
+    let text: String
+    let colors: [Color]
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.headline)
+                Text(text)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: colors),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(20)
+            .shadow(color: colors.first?.opacity(0.4) ?? .clear, radius: 8, x: 0, y: 4)
+        }
+        .scaleEffect(1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: true)
+    }
+}
+
+struct LessonSelectionCard: View {
+    let lesson: LessonSuggestion
+    let isSelected: Bool
+    let onToggle: () -> Void
+    let onShowDetail: () -> Void
+    
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 16) {
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Color.green : Color.white.opacity(0.3), lineWidth: 2)
+                        .frame(width: 24, height: 24)
+                    
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                    }
+                }
+                
+                // Lesson content
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(lesson.title)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.leading)
+                    
+                    Text(lesson.description)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                
+                Spacer()
+                
+                // Info button
+                Button(action: onShowDetail) {
+                    Image(systemName: "info.circle")
+                        .font(.title3)
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? Color.green.opacity(0.1) : Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isSelected ? Color.green.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+    }
+}
+
+// MARK: - Legacy Compatibility
+
+struct StatCard: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        CompactStatCard(icon: icon, title: title, value: value, color: color)
+    }
+}
+
+// MARK: - AI Chat Modal
+
 struct AIChatModalView: View {
     let topic: String
     let onGenerateMore: () -> Void
     let onClose: () -> Void
     
-    @State private var chatInput = ""
-    @State private var chatMessages: [ChatMessage] = []
-    
     var body: some View {
         NavigationView {
             VStack {
-                // Chat interface would go here
-                VStack {
-                    Spacer()
-                    
-                    Text("💬 AI Chat for Lesson Ideas")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("Chat with AI to get personalized lesson suggestions for your \(topic) course")
-                        .font(.body)
-                        .multilineTextAlignment(.center)
-                        .padding()
-                    
-                    Spacer()
-                    
-                    Button("Generate Ideas") {
-                        onGenerateMore()
-                        onClose()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-            .navigationTitle("AI Chat")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                trailing: Button("Done") {
-                    onClose()
-                }
-            )
-        }
-    }
-}
-
-struct PersonalizedLessonCard: View {
-    @Binding var lesson: LessonSuggestion
-    let animationDelay: Double
-    let onShowDetail: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Button(action: { lesson.isSelected.toggle() }) {
-                    Image(systemName: lesson.isSelected ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(lesson.isSelected ? .green : .gray)
-                }
+                Text("Chat with AI about \(topic)")
+                    .font(.title2)
+                    .padding()
                 
                 Spacer()
                 
-                Button(action: onShowDetail) {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.blue)
-                }
+                Button("Generate More Lessons", action: onGenerateMore)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(12)
             }
-            
-            Text(lesson.title)
-                .font(.headline)
-                .foregroundColor(.white)
-                .lineLimit(2)
-            
-            Text(lesson.shortDescription)
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.7))
-                .lineLimit(3)
-            
-            Text(lesson.estimatedMinutes)
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.6))
+            .navigationTitle("AI Assistant")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(trailing: Button("Done", action: onClose))
         }
-        .padding()
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(lesson.isSelected ? Color.green : Color.clear, lineWidth: 2)
-        )
     }
-}
-
-#Preview {
-    CustomizationStepView(
-        viewModel: EnhancedCourseChatViewModel(
-            topic: "Personal Finance",
-            difficulty: .beginner,
-            pace: .balanced
-        ),
-        onShowDetail: { _ in print("Show detail") },
-        onFinalize: { print("Finalize") }
-    )
-    .background(
-        LinearGradient(
-            colors: [
-                Color(red: 0.02, green: 0.05, blue: 0.2),
-                Color(red: 0.05, green: 0.1, blue: 0.3),
-                Color(red: 0.08, green: 0.15, blue: 0.4)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    )
 } 

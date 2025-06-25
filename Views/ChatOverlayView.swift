@@ -76,7 +76,7 @@ struct ChatOverlayView: View {
                         .font(.title2)
                         .foregroundColor(.white)
                         .frame(width: 44, height: 44)
-                        .background(.ultraThinMaterial)
+                        .background(Color.white.opacity(0.1))
                         .clipShape(Circle())
                 }
                 
@@ -112,7 +112,7 @@ struct ChatOverlayView: View {
             Divider()
                 .background(Color.white.opacity(0.2))
         }
-        .background(.ultraThinMaterial)
+        .background(Color.black.opacity(0.3))
     }
     
     private var initialGreetingView: some View {
@@ -159,25 +159,31 @@ struct ChatOverlayView: View {
             // Quick action buttons
             VStack(spacing: 12) {
                 QuickActionButton(
-                    text: "Add more lessons about budgeting",
-                    icon: "plus.circle.fill"
-                ) {
-                    sendQuickMessage("Can you suggest more lessons about budgeting and saving strategies?")
-                }
+                    icon: "plus.circle.fill",
+                    title: "Add more lessons about budgeting",
+                    color: .green,
+                    action: {
+                        sendQuickMessage("Can you suggest more lessons about budgeting and saving strategies?")
+                    }
+                )
                 
                 QuickActionButton(
-                    text: "Make lessons more practical",
-                    icon: "wrench.and.screwdriver.fill"
-                ) {
-                    sendQuickMessage("Can you make the lessons more hands-on and practical?")
-                }
+                    icon: "wrench.and.screwdriver.fill",
+                    title: "Make lessons more practical",
+                    color: .blue,
+                    action: {
+                        sendQuickMessage("Can you make the lessons more hands-on and practical?")
+                    }
+                )
                 
                 QuickActionButton(
-                    text: "Adjust difficulty level",
-                    icon: "slider.horizontal.3"
-                ) {
-                    sendQuickMessage("Can you adjust the difficulty level of the lessons?")
-                }
+                    icon: "slider.horizontal.3",
+                    title: "Adjust difficulty level",
+                    color: .orange,
+                    action: {
+                        sendQuickMessage("Can you adjust the difficulty level of the lessons?")
+                    }
+                )
             }
             .padding(.horizontal, 20)
         }
@@ -196,7 +202,7 @@ struct ChatOverlayView: View {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 20)
-                            .fill(.ultraThinMaterial)
+                            .fill(Color.white.opacity(0.1))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
                                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -229,7 +235,7 @@ struct ChatOverlayView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
+            .background(Color.black.opacity(0.3))
         }
     }
     
@@ -274,16 +280,42 @@ struct ChatOverlayView: View {
     private func generateAIResponse(for message: String) -> String {
         let messageLower = message.lowercased()
         
+        // Add the discussion to the viewModel for lesson generation
+        viewModel.addChatDiscussion(message)
+        
         if messageLower.contains("budget") || messageLower.contains("saving") {
-            return "Great question! I can suggest additional lessons on budgeting fundamentals, expense tracking methods, and automated savings strategies. Would you like me to add specific lessons on creating a zero-based budget or emergency fund building?"
+            // Add specific budgeting lessons
+            viewModel.addChatLesson(
+                title: "Zero-Based Budgeting Method",
+                description: "Learn how to allocate every dollar of income to specific categories, ensuring no money goes unaccounted for."
+            )
+            viewModel.addChatLesson(
+                title: "Emergency Fund Building Strategies",
+                description: "Practical steps to build and maintain an emergency fund that covers 3-6 months of expenses."
+            )
+            return "Perfect! I've added two new lessons based on our discussion: 'Zero-Based Budgeting Method' and 'Emergency Fund Building Strategies'. These will appear in your course with a 💬 icon to show they came from our chat."
         } else if messageLower.contains("practical") || messageLower.contains("hands-on") {
-            return "Absolutely! I can make the lessons more practical by adding real-world exercises, interactive calculators, and case studies. For example, we could include worksheets for creating actual budgets and tracking real expenses."
+            viewModel.addChatLesson(
+                title: "Hands-On Budget Creation Workshop",
+                description: "Step-by-step guide to creating your first budget using real-world examples and interactive tools."
+            )
+            return "Excellent! I've added a 'Hands-On Budget Creation Workshop' lesson that includes interactive exercises and real-world applications. You'll see it marked with 💬 in your lesson list."
         } else if messageLower.contains("difficult") || messageLower.contains("level") {
-            return "I can adjust the complexity level! Would you like me to make the content more beginner-friendly with simpler explanations, or would you prefer more advanced topics with deeper analysis and complex scenarios?"
+            viewModel.addChatLesson(
+                title: "Beginner-Friendly Finance Fundamentals",
+                description: "Easy-to-understand introduction to basic financial concepts with simple explanations and examples."
+            )
+            return "Great! I've added a 'Beginner-Friendly Finance Fundamentals' lesson that breaks down complex concepts into simple, easy-to-understand parts. Look for the 💬 icon next to it!"
         } else if messageLower.contains("time") || messageLower.contains("length") {
-            return "I can help optimize the lesson timing! Would you like shorter, more focused lessons that are easier to fit into your schedule, or longer, comprehensive sessions that cover topics in greater depth?"
+            return "I can help optimize the lesson timing! The current lessons are designed for your \(viewModel.preferredLessonTime)-minute sessions. Would you like me to suggest ways to break them into shorter segments or combine them for longer study periods?"
         } else {
-            return "That's a great question! I can help you customize any aspect of your course. Feel free to ask about specific topics you'd like to add, difficulty adjustments, lesson structure, or any other preferences you have in mind."
+            // For general questions, create a lesson based on the topic discussed
+            let words = message.split(separator: " ").prefix(8).joined(separator: " ")
+            viewModel.addChatLesson(
+                title: "Custom Topic: \(String(words))",
+                description: "A personalized lesson covering the topics we discussed in our conversation."
+            )
+            return "Thanks for that question! I've created a custom lesson based on our discussion. You'll see it in your course list marked with 💬. Feel free to ask about any other specific topics you'd like to explore!"
         }
     }
 }
@@ -320,7 +352,7 @@ struct ChatMessageBubble: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(.ultraThinMaterial)
+                                .fill(Color.white.opacity(0.1))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                                         .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -367,38 +399,7 @@ struct ChatMessageBubble: View {
     }
 }
 
-struct QuickActionButton: View {
-    let text: String
-    let icon: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundColor(.white)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                    )
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
+
 
 struct TypingIndicatorView: View {
     @State private var animationPhase: Int = 0
@@ -441,7 +442,7 @@ struct TypingIndicatorView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.white.opacity(0.1))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(Color.white.opacity(0.2), lineWidth: 1)

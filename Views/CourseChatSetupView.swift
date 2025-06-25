@@ -153,7 +153,19 @@ extension CourseChatSetupView {
         case .generating:
             GeneratingStepView(
                 topic: viewModel.topic,
-                progress: $viewModel.generationProgress
+                selectedLessons: viewModel.selectedLessons,
+                progress: $viewModel.generationProgress,
+                isVisible: .constant(true),
+                onComplete: {
+                    withAnimation(.spring()) {
+                        currentStep = .customization
+                    }
+                },
+                onCancel: {
+                    withAnimation(.spring()) {
+                        currentStep = .chatCustomization
+                    }
+                }
             )
         case .customization:
             CustomizationStepView(

@@ -154,16 +154,49 @@ struct InterestsStepView: View {
                 InterestArea(title: "E-commerce", icon: "cart.fill", color: .cyan),
                 InterestArea(title: "Customer Psychology", icon: "brain.head.profile", color: .mint)
             ]
-        } else {
-            // Generic interests
+        } else if topicLower.contains("physics") {
             return [
-                InterestArea(title: "Fundamentals", icon: "book.fill", color: .blue),
-                InterestArea(title: "Practical Applications", icon: "wrench.and.screwdriver.fill", color: .green),
-                InterestArea(title: "Advanced Concepts", icon: "graduationcap.fill", color: .purple),
+                InterestArea(title: "Mechanics & Motion", icon: "car.fill", color: .blue),
+                InterestArea(title: "Energy & Forces", icon: "bolt.fill", color: .yellow),
+                InterestArea(title: "Waves & Sound", icon: "waveform", color: .green),
+                InterestArea(title: "Electricity & Magnetism", icon: "powerplug.fill", color: .purple),
+                InterestArea(title: "Light & Optics", icon: "lightbulb.fill", color: .orange),
+                InterestArea(title: "Thermodynamics", icon: "thermometer", color: .red),
+                InterestArea(title: "Modern Physics", icon: "atom", color: .cyan),
+                InterestArea(title: "Real-World Applications", icon: "gear", color: .mint)
+            ]
+        } else if topicLower.contains("history") {
+            return [
+                InterestArea(title: "Ancient Civilizations", icon: "building.columns.fill", color: .brown),
+                InterestArea(title: "Wars & Conflicts", icon: "shield.fill", color: .red),
+                InterestArea(title: "Cultural Movements", icon: "person.3.fill", color: .purple),
+                InterestArea(title: "Political Changes", icon: "flag.fill", color: .blue),
+                InterestArea(title: "Scientific Revolution", icon: "flask.fill", color: .green),
+                InterestArea(title: "Economic Systems", icon: "dollarsign.circle.fill", color: .yellow),
+                InterestArea(title: "Social Progress", icon: "heart.fill", color: .pink),
+                InterestArea(title: "Modern Era", icon: "globe", color: .cyan)
+            ]
+        } else if topicLower.contains("math") || topicLower.contains("calculus") || topicLower.contains("algebra") {
+            return [
+                InterestArea(title: "Basic Operations", icon: "plus.minus", color: .blue),
+                InterestArea(title: "Equations & Functions", icon: "function", color: .green),
+                InterestArea(title: "Geometry & Shapes", icon: "triangle.fill", color: .purple),
+                InterestArea(title: "Statistics & Data", icon: "chart.bar.fill", color: .orange),
+                InterestArea(title: "Problem Solving", icon: "puzzlepiece.fill", color: .red),
+                InterestArea(title: "Real-World Math", icon: "calculator.fill", color: .yellow),
+                InterestArea(title: "Advanced Concepts", icon: "infinity", color: .cyan),
+                InterestArea(title: "Mathematical Proofs", icon: "checkmark.seal.fill", color: .mint)
+            ]
+        } else {
+            // Fallback for any other topics
+            return [
+                InterestArea(title: "Core Concepts", icon: "book.fill", color: .blue),
+                InterestArea(title: "Practical Skills", icon: "wrench.and.screwdriver.fill", color: .green),
+                InterestArea(title: "Advanced Topics", icon: "graduationcap.fill", color: .purple),
                 InterestArea(title: "Case Studies", icon: "doc.text.magnifyingglass", color: .orange),
                 InterestArea(title: "Best Practices", icon: "checkmark.seal.fill", color: .red),
-                InterestArea(title: "Tools & Resources", icon: "hammer.fill", color: .yellow),
-                InterestArea(title: "Industry Trends", icon: "chart.line.uptrend.xyaxis", color: .cyan),
+                InterestArea(title: "Tools & Methods", icon: "hammer.fill", color: .yellow),
+                InterestArea(title: "Current Trends", icon: "chart.line.uptrend.xyaxis", color: .cyan),
                 InterestArea(title: "Expert Insights", icon: "lightbulb.fill", color: .mint)
             ]
         }

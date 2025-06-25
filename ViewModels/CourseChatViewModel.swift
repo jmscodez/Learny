@@ -302,6 +302,10 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     @Published var suggestedLessons: [LessonSuggestion] = []
     @Published var isGenerating: Bool = false
     
+    // AI Chat integration
+    @Published var chatLessons: [LessonSuggestion] = []
+    @Published var chatDiscussions: [String] = []
+    
     // Computed properties
     var selectedLessons: [LessonSuggestion] {
         suggestedLessons.filter(\.isSelected)
@@ -347,9 +351,22 @@ final class EnhancedCourseChatViewModel: ObservableObject {
             generationProgress = 1.0
             
             if let lessons = lessons {
-                suggestedLessons = lessons
-                // Auto-select a reasonable number based on desired count
-                let autoSelectCount = min(desiredLessonCount, lessons.count)
+                // Combine AI-generated lessons with chat lessons
+                var allLessons = lessons
+                
+                // Add chat lessons at the beginning and mark them as special
+                for chatLesson in chatLessons {
+                    var specialLesson = chatLesson
+                    specialLesson.title = "💬 " + specialLesson.title
+                    specialLesson.description = "From AI Chat: " + specialLesson.description
+                    allLessons.insert(specialLesson, at: 0)
+                }
+                
+                suggestedLessons = allLessons
+                
+                // Auto-select chat lessons plus desired count
+                let chatCount = chatLessons.count
+                let autoSelectCount = min(desiredLessonCount + chatCount, allLessons.count)
                 for i in 0..<autoSelectCount {
                     suggestedLessons[i].isSelected = true
                 }
@@ -363,14 +380,19 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     }
     
     /// Generates additional lessons for the "Generate More" feature
+    /// Uses X + 2 formula: generates 2 more than the user's desired count
     func generateAdditionalLessons() async {
+        let targetCount = desiredLessonCount + 2
+        let currentCount = suggestedLessons.count
+        let lessonsToGenerate = max(2, targetCount - currentCount) // At least 2 new lessons
+        
         let existingTitles = suggestedLessons.map { $0.title }
         
         let newLessons = await aiService.generateInitialLessonIdeas(
             for: topic,
             difficulty: difficulty,
             pace: pace,
-            count: 3
+            count: lessonsToGenerate
         )
         
         if let newLessons = newLessons {
@@ -385,6 +407,54 @@ final class EnhancedCourseChatViewModel: ObservableObject {
                 suggestedLessons.append(contentsOf: filteredLessons)
             }
         }
+    }
+    
+    /// Adds a lesson based on AI chat discussion
+    func addChatLesson(title: String, description: String) {
+        let chatLesson = LessonSuggestion(
+            title: title,
+            description: description,
+            isSelected: true // Auto-select chat lessons
+        )
+        chatLessons.append(chatLesson)
+    }
+    
+    /// Adds a discussion topic from AI chat
+    func addChatDiscussion(_ discussion: String) {
+        chatDiscussions.append(discussion)
+        
+        // Auto-generate a lesson from the discussion
+        Task {
+            if let lesson = await generateLessonFromDiscussion(discussion) {
+                await MainActor.run {
+                    addChatLesson(title: lesson.title, description: lesson.description)
+                }
+            }
+        }
+    }
+    
+    private func generateLessonFromDiscussion(_ discussion: String) async -> LessonSuggestion? {
+        // Use AI service to convert discussion into a lesson
+        let prompt = """
+        Based on this discussion about \(topic): "\(discussion)"
+        
+        Create a lesson with:
+        - A clear, specific title (max 60 characters)
+        - A detailed description explaining what the lesson will cover
+        
+        Make it practical and actionable for someone learning \(topic).
+        """
+        
+        // This would use the AI service to generate a lesson
+        // For now, create a basic lesson from the discussion
+        let words = discussion.split(separator: " ")
+        let title = String(words.prefix(6).joined(separator: " "))
+        
+        return LessonSuggestion(
+            title: title.isEmpty ? "Discussion Topic" : title,
+            description: "A lesson based on our chat discussion: \(discussion.prefix(100))...",
+            isSelected: true
+        )
     }
     
     private func createFallbackLessons() -> [LessonSuggestion] {
