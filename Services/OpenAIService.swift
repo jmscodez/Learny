@@ -185,6 +185,51 @@ final class OpenAIService {
         )
     }
     
+    /// Generates personalized lesson ideas based on comprehensive user preferences.
+    func generatePersonalizedLessonIdeas(
+        for topic: String,
+        difficulty: Difficulty,
+        pace: Pace,
+        experience: String,
+        interests: [String],
+        goals: [String],
+        timeCommitment: Int
+    ) async -> [LessonSuggestion]? {
+        let difficultyGuide = getDifficultyInstructions(for: difficulty)
+        let paceGuide = getPaceInstructions(for: pace)
+        
+        let prompt = """
+        You are an expert curriculum designer creating a highly personalized course about '\(topic)'. Use the following user profile to generate the most relevant and engaging lesson ideas:
+        
+        **USER PROFILE:**
+        - Experience Level: \(experience.isEmpty ? "Not specified" : experience)
+        - Specific Interests: \(interests.isEmpty ? "General" : interests.joined(separator: ", "))
+        - Learning Goals: \(goals.isEmpty ? "General knowledge" : goals.joined(separator: ", "))
+        - Time per Lesson: \(timeCommitment) minutes
+        
+        **COURSE SPECIFICATIONS:**
+        - Difficulty: \(difficulty.rawValue.uppercased()) - \(difficultyGuide)
+        - Pace: \(pace.rawValue.uppercased()) - \(paceGuide)
+        
+        **PERSONALIZATION REQUIREMENTS:**
+        1. Tailor lessons to match their stated interests and goals
+        2. Consider their experience level when setting depth and complexity
+        3. Design each lesson to fit within \(timeCommitment) minutes
+        4. Create a progressive learning path that builds knowledge systematically
+        5. Include practical, applicable content that aligns with their goals
+        
+        Generate 8-10 diverse, personalized lesson ideas that create a comprehensive learning journey. Each lesson should feel custom-made for this specific learner.
+        
+        Your response MUST be a valid JSON object with a single key 'lessons' that contains an array of objects. Each object should have:
+        - 'title': Engaging lesson title
+        - 'description': Clear description explaining what they'll learn and why it matters to their goals
+        
+        Do not include any other text, just the raw JSON.
+        """
+        
+        return await generateSuggestions(with: prompt)
+    }
+    
     /// Fills out the lesson plan to meet a target number of lessons.
     func fulfillLessonPlan(topic: String, existingLessons: [LessonSuggestion], count: Int) async -> [LessonSuggestion]? {
         let existingTitles = existingLessons.map { $0.title }.joined(separator: ", ")
