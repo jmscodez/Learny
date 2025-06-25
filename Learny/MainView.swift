@@ -28,13 +28,14 @@ struct MainView: View {
                     }
                     .tag(2)
             }
-            .blur(radius: generationManager.isGenerating ? 2 : 0)
+            .blur(radius: generationManager.isGenerating ? 1 : 0)
             .animation(.easeInOut(duration: 0.3), value: generationManager.isGenerating)
             
             if generationManager.isGenerating {
                 SubtleLoadingOverlay()
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                     .animation(.easeInOut(duration: 0.3), value: generationManager.isGenerating)
+                    .allowsHitTesting(false) // Allow taps to pass through to underlying content
             }
         }
         .preferredColorScheme(.dark)

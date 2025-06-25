@@ -33,64 +33,78 @@ struct TopicInputView: View {
         }
     }
     
+    private var customizationView: some View {
+        VStack(spacing: 20) {
+            Text("Customize Your Learning")
+                .font(.headline)
+                .foregroundColor(.white.opacity(0.8))
+            
+            OptionGroupView(title: "Difficulty Level") {
+                HStack(spacing: 12) {
+                    ForEach(Difficulty.allCases, id: \.self) { level in
+                        DifficultyPill(title: level.rawValue.capitalized, isSelected: self.difficulty == level) {
+                            self.difficulty = level
+                        }
+                    }
+                }
+                Text(difficultyDescription)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .frame(minHeight: 40, alignment: .top)
+                    .multilineTextAlignment(.leading)
+            }
+            
+            OptionGroupView(title: "Learning Pace") {
+                HStack(spacing: 12) {
+                    ForEach(Pace.allCases, id: \.self) { level in
+                        PacePill(title: level.displayName, isSelected: self.pace == level) {
+                            self.pace = level
+                        }
+                    }
+                }
+                Text(paceDescription)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .frame(minHeight: 40, alignment: .top)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+        .transition(.opacity.combined(with: .slide))
+        .animation(.easeInOut(duration: 0.3), value: topic.isEmpty)
+    }
+    
     var body: some View {
         NavigationStack(path: $navManager.path) {
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
                 
                 ScrollView {
-                    VStack(spacing: 24) {
-                        Text("Create a New Course")
+                    VStack(spacing: 32) {
+                        Text("Create with AI")
                             .font(.system(size: 32, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.top, 48)
                         
-                        TextField("", text: $topic, prompt: Text("e.g., The History of the NBA").foregroundColor(.gray))
-                            .padding()
-                            .background(Color.white.opacity(0.1))
-                            .cornerRadius(12)
-                            .foregroundColor(.white)
-                            .padding(.bottom, 24)
-
-                        // Grouped Choosers
-                        VStack(spacing: 20) {
-                            OptionGroupView(title: "Choose Difficulty") {
-                                HStack(spacing: 12) {
-                                    ForEach(Difficulty.allCases, id: \.self) { level in
-                                        DifficultyPill(title: level.rawValue.capitalized, isSelected: self.difficulty == level) {
-                                            self.difficulty = level
-                                        }
-                                    }
-                                }
-                                Text(difficultyDescription)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .frame(minHeight: 40, alignment: .top)
-                                    .multilineTextAlignment(.leading)
-                            }
+                        // Main topic input
+                        VStack(spacing: 16) {
+                            TextField("", text: $topic, prompt: Text("What would you like to learn about?").foregroundColor(.gray))
+                                .padding()
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
+                                .foregroundColor(.white)
                             
-                            OptionGroupView(title: "Choose Pace") {
-                                HStack(spacing: 12) {
-                                    ForEach(Pace.allCases, id: \.self) { level in
-                                        PacePill(title: level.displayName, isSelected: self.pace == level) {
-                                            self.pace = level
-                                        }
-                                    }
+                            // Quick create button - main CTA
+                            Button(action: { showAIChat = true }) {
+                                HStack {
+                                    Image(systemName: "sparkles")
+                                        .font(.title2)
+                                    Text("Create Course")
+                                        .font(.title2)
+                                        .fontWeight(.semibold)
                                 }
-                                Text(paceDescription)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .frame(minHeight: 40, alignment: .top)
-                                    .multilineTextAlignment(.leading)
-                            }
-                        }
-
-                        Button(action: { showAIChat = true }) {
-                            Label("Create with AI", systemImage: "sparkles")
-                                .font(.headline)
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
-                                .padding()
+                                .frame(height: 60)
                                 .background(
                                     LinearGradient(
                                         colors: [.blue, .purple],
@@ -99,12 +113,18 @@ struct TopicInputView: View {
                                     )
                                 )
                                 .cornerRadius(16)
+                                .shadow(color: .purple.opacity(0.4), radius: 8, x: 0, y: 4)
+                            }
+                            .disabled(topic.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .opacity(topic.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1.0)
                         }
-                        .disabled(topic.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .opacity(topic.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1.0)
-                        .fullScreenCover(isPresented: $showAIChat) {
-                            CourseChatSetupView(topic: topic, difficulty: difficulty, pace: pace, isPresented: $showAIChat)
+                        
+                        // Advanced options - secondary
+                        if !topic.isEmpty {
+                            customizationView
                         }
+                        
+                        Spacer()
                     }
                     .padding()
                 }
@@ -113,6 +133,9 @@ struct TopicInputView: View {
             .navigationBarHidden(true)
             .navigationDestination(for: Course.self) { course in
                 LessonMapView(course: course)
+            }
+            .fullScreenCover(isPresented: $showAIChat) {
+                CourseChatSetupView(topic: topic, difficulty: difficulty, pace: pace, isPresented: $showAIChat)
             }
         }
         .onAppear(perform: notesManager.requestAuthorization)

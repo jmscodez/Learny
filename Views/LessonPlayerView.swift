@@ -900,94 +900,227 @@ private struct EnhancedDragToOrderScreenView: View {
     let payload: DragToOrderScreen
     @Binding var state: DragToOrderState
     
+    @State private var draggedItem: Int?
+    @State private var dragOffset = CGSize.zero
+    
     var body: some View {
         VStack(spacing: 24) {
-            // Instruction
-            Text(payload.instruction)
-                .font(.title2)
-                .fontWeight(.semibold)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-            
+            instructionView
             Spacer()
-            
-            Text("Drag to reorder (simplified for now - tap to select order)")
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.6))
-            
-            // Simple ordering interface
-            VStack(spacing: 12) {
-                ForEach(payload.items.indices, id: \.self) { index in
-                    Button(action: {
-                        if !state.currentOrder.contains(index) {
-                            state.currentOrder.append(index)
-                        }
-                    }) {
-                        HStack {
-                            Text("\(state.currentOrder.firstIndex(of: index).map { $0 + 1 } ?? 0). ")
-                                .font(.body)
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                            
-                            Text(payload.items[index])
-                                .font(.body)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            state.currentOrder.contains(index) ?
-                            Color.blue.opacity(0.3) :
-                            Color.white.opacity(0.1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .disabled(state.currentOrder.contains(index))
-                }
+            helpText
+            initializeOrderIfNeeded
+            draggableOrderingInterface
+            Spacer()
+            checkOrderButton
+            feedbackView
+            Spacer()
+        }
+    }
+    
+    private var instructionView: some View {
+        Text(payload.instruction)
+            .font(.title2)
+            .fontWeight(.semibold)
+            .multilineTextAlignment(.center)
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+    }
+    
+    private var helpText: some View {
+        Text("Drag to reorder the items chronologically")
+            .font(.caption)
+            .foregroundColor(.white.opacity(0.6))
+    }
+    
+    @ViewBuilder
+    private var initializeOrderIfNeeded: some View {
+        if state.currentOrder.isEmpty {
+            let _ = DispatchQueue.main.async {
+                state.currentOrder = Array(0..<payload.items.count)
             }
-            
-            // Check answer button
-            if state.currentOrder.count == payload.items.count {
-                Button(action: {
-                    state.isCorrect = state.currentOrder == payload.correctOrder
-                }) {
-                    Text("Check Order")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.yellow, Color.orange],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
+        }
+    }
+    
+    private var draggableOrderingInterface: some View {
+        VStack(spacing: 16) {
+            ForEach(state.currentOrder.indices, id: \.self) { position in
+                dragItemRow(position: position)
             }
+        }
+    }
+    
+    private func dragItemRow(position: Int) -> some View {
+        let itemIndex = state.currentOrder[position]
+        let isDragging = draggedItem == itemIndex
+        
+        return HStack(spacing: 16) {
+            positionNumberView(position: position)
+            itemContentView(itemIndex: itemIndex)
+            dragHandleView
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
+        .background(dragItemBackground(isDragging: isDragging))
+        .scaleEffect(isDragging ? 1.05 : 1.0)
+        .shadow(color: isDragging ? Color.blue.opacity(0.3) : Color.clear, radius: isDragging ? 8 : 0)
+        .offset(y: isDragging ? dragOffset.height : 0)
+        .animation(.easeInOut(duration: 0.2), value: isDragging)
+        .zIndex(isDragging ? 1 : 0)
+        .gesture(createDragGesture(itemIndex: itemIndex, position: position))
+    }
+    
+    private func positionNumberView(position: Int) -> some View {
+        ZStack {
+            Circle()
+                .fill(Color.blue.opacity(0.8))
+                .frame(width: 32, height: 32)
             
-            // Feedback
-            if let isCorrect = state.isCorrect {
-                Text(isCorrect ? "Perfect order! 🎉" : "Not quite right. Try again!")
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundColor(isCorrect ? .green : .orange)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill((isCorrect ? Color.green : Color.orange).opacity(0.1))
-                    )
+            Text("\(position + 1)")
+                .font(.body)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+        }
+    }
+    
+    private func itemContentView(itemIndex: Int) -> some View {
+        Text(payload.items[itemIndex])
+            .font(.body)
+            .fontWeight(.medium)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private var dragHandleView: some View {
+        Image(systemName: "line.horizontal.3")
+            .font(.body)
+            .foregroundColor(.white.opacity(0.6))
+    }
+    
+    private var checkOrderButton: some View {
+        Button(action: {
+            state.isCorrect = state.currentOrder == payload.correctOrder
+        }) {
+            Text("Check Order")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(checkOrderButtonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(color: Color.yellow.opacity(0.4), radius: 4, x: 0, y: 2)
+        }
+    }
+    
+    private var checkOrderButtonBackground: some View {
+        LinearGradient(
+            colors: [Color.yellow, Color.orange],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
+    @ViewBuilder
+    private var feedbackView: some View {
+        if let isCorrect = state.isCorrect {
+            feedbackContent(isCorrect: isCorrect)
+        }
+    }
+    
+    private func feedbackContent(isCorrect: Bool) -> some View {
+        VStack(spacing: 12) {
+            feedbackHeader(isCorrect: isCorrect)
+            
+            if !isCorrect {
+                resetOrderButton
             }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(feedbackBackground(isCorrect: isCorrect))
+    }
+    
+    private func feedbackHeader(isCorrect: Bool) -> some View {
+        HStack {
+            Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .font(.title2)
+                .foregroundColor(isCorrect ? .green : .red)
+            
+            Text(isCorrect ? "Perfect order! 🎉" : "Not quite right. Try again!")
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(isCorrect ? .green : .red)
             
             Spacer()
         }
+    }
+    
+    private var resetOrderButton: some View {
+        Button("Reset Order") {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                state.currentOrder = Array(0..<payload.items.count)
+                state.isCorrect = nil
+            }
+        }
+        .font(.body)
+        .foregroundColor(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(resetOrderButtonBackground)
+    }
+    
+    private var resetOrderButtonBackground: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.white.opacity(0.1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+            )
+    }
+    
+    private func feedbackBackground(isCorrect: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill((isCorrect ? Color.green : Color.red).opacity(0.1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isCorrect ? Color.green : Color.red, lineWidth: 1)
+            )
+    }
+    
+    private func dragItemBackground(isDragging: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(isDragging ? Color.blue.opacity(0.4) : Color.white.opacity(0.1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isDragging ? Color.blue : Color.white.opacity(0.2), lineWidth: isDragging ? 2 : 1)
+            )
+    }
+    
+    private func createDragGesture(itemIndex: Int, position: Int) -> some Gesture {
+        DragGesture()
+            .onChanged { value in
+                if draggedItem == nil {
+                    draggedItem = itemIndex
+                }
+                dragOffset = value.translation
+            }
+            .onEnded { value in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    // Calculate where to drop the item based on drag distance
+                    let dragDistance = value.translation.height
+                    let itemHeight: CGFloat = 70 // Approximate height of each item
+                    let targetPosition = max(0, min(state.currentOrder.count - 1, position + Int(dragDistance / itemHeight)))
+                    
+                    // Reorder the array
+                    if targetPosition != position {
+                        let item = state.currentOrder.remove(at: position)
+                        state.currentOrder.insert(item, at: targetPosition)
+                    }
+                    
+                    draggedItem = nil
+                    dragOffset = .zero
+                }
+            }
     }
 }
 
