@@ -7,248 +7,294 @@ import SwiftUI
 
 struct GeneratingStepView: View {
     let topic: String
-    let progress: Double
+    @Binding var progress: Double
     
-    @State private var animationPhase: Double = 0
-    @State private var sparklePositions: [CGPoint] = []
-    @State private var showSparkles: Bool = false
+    @State private var animationProgress: Double = 0
+    @State private var currentStep = 0
+    @State private var showingSteps = false
+    @State private var particles: [Particle] = []
+    
+    private let generationSteps = [
+        "Analyzing your preferences",
+        "Selecting relevant topics and concepts",
+        "Structuring optimal lesson sequence",
+        "Generating personalized content",
+        "Finalizing your custom course"
+    ]
     
     var body: some View {
-        VStack(spacing: 40) {
-            Spacer()
-            
-            // Main Animation Section
-            VStack(spacing: 32) {
-                // Animated AI Brain
-                ZStack {
-                    // Outer glow ring
+        GeometryReader { geometry in
+            ZStack {
+                // Animated background
+                ForEach(particles, id: \.id) { particle in
                     Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 4
-                        )
-                        .frame(width: 140, height: 140)
-                        .scaleEffect(1 + sin(animationPhase * 2) * 0.1)
+                        .fill(particle.color.opacity(0.6))
+                        .frame(width: particle.size, height: particle.size)
+                        .position(particle.position)
+                        .scaleEffect(particle.scale)
+                        .opacity(particle.opacity)
+                }
+                
+                VStack(spacing: 40) {
+                    Spacer()
                     
-                    // Middle ring
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [.blue.opacity(0.5), .purple.opacity(0.5)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 2
-                        )
-                        .frame(width: 120, height: 120)
-                        .scaleEffect(1 + sin(animationPhase * 2.5 + .pi) * 0.08)
-                    
-                    // Core circle with brain icon
+                    // Main animation circle
                     ZStack {
+                        // Outer ring
                         Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 100, height: 100)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 4)
+                            .frame(width: 200, height: 200)
                         
-                        Image(systemName: "brain.head.profile")
-                            .font(.system(size: 36, weight: .medium))
-                            .foregroundStyle(
+                        // Progress ring
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(
                                 LinearGradient(
-                                    colors: [.blue, .purple],
+                                    gradient: Gradient(colors: [.blue, .purple, .green]),
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
-                                )
+                                ),
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
                             )
-                            .scaleEffect(1 + sin(animationPhase * 3) * 0.05)
-                    }
-                }
-                .shadow(color: .purple.opacity(0.3), radius: 20, y: 10)
-                .overlay(
-                    // Floating sparkles
-                    ForEach(0..<8, id: \.self) { index in
-                        if showSparkles {
-                            Image(systemName: "sparkle")
-                                .foregroundColor(.white.opacity(0.8))
+                            .frame(width: 200, height: 200)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeInOut(duration: 0.8), value: progress)
+                        
+                        // Center content
+                        VStack(spacing: 12) {
+                            Image(systemName: "brain.head.profile")
+                                .font(.system(size: 40, weight: .medium))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [.blue, .purple]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .scaleEffect(animationProgress)
+                                .rotationEffect(.degrees(animationProgress * 360))
+                            
+                            Text("\(Int(progress * 100))%")
                                 .font(.title2)
-                                .position(sparklePositions.indices.contains(index) ? sparklePositions[index] : CGPoint(x: 50, y: 50))
-                                .opacity(sin(animationPhase * 2 + Double(index) * 0.5) > 0 ? 0.8 : 0.3)
-                                .scaleEffect(sin(animationPhase * 2 + Double(index) * 0.5) > 0 ? 1.2 : 0.8)
-                                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: animationPhase)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
                         }
                     }
-                )
-                
-                // Title and Status
-                VStack(spacing: 16) {
-                    Text("Creating your personalized course")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
                     
-                    Text("Our AI is analyzing your preferences and crafting the perfect learning path for **\(topic)**")
-                        .font(.title3)
-                        .foregroundColor(.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-            }
-            
-            // Progress Section
-            VStack(spacing: 24) {
-                // Progress Bar
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Progress")
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.9))
-                        
-                        Spacer()
-                        
-                        Text("\(Int(progress * 100))%")
-                            .font(.headline)
+                    // Title and description
+                    VStack(spacing: 16) {
+                        Text("Creating your personalized course")
+                            .font(.title)
                             .fontWeight(.bold)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .opacity(animationProgress)
+                        
+                        Text("Our AI is analyzing your preferences and crafting the perfect learning path for \(topic)")
+                            .font(.body)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                            .opacity(animationProgress)
                     }
                     
-                    ZStack(alignment: .leading) {
-                        // Background
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.2))
-                            .frame(height: 8)
-                        
-                        // Progress fill
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+                    // Generation steps
+                    if showingSteps {
+                        VStack(spacing: 12) {
+                            ForEach(Array(generationSteps.enumerated()), id: \.offset) { index, step in
+                                GenerationStepRow(
+                                    step: step,
+                                    isCompleted: index < currentStep,
+                                    isActive: index == currentStep,
+                                    animationDelay: Double(index) * 0.1
                                 )
-                            )
-                            .frame(width: UIScreen.main.bounds.width * 0.7 * progress, height: 8)
-                            .animation(.easeInOut(duration: 0.5), value: progress)
-                    }
-                    .frame(width: UIScreen.main.bounds.width * 0.7)
-                }
-                
-                // Status Messages
-                VStack(spacing: 8) {
-                    ForEach(getStatusMessages(), id: \.self) { message in
-                        HStack(spacing: 12) {
-                            if shouldShowCheckmark(for: message) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.title3)
-                            } else if shouldShowSpinner(for: message) {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                            } else {
-                                Circle()
-                                    .fill(Color.white.opacity(0.3))
-                                    .frame(width: 8, height: 8)
                             }
-                            
-                            Text(message)
-                                .font(.subheadline)
-                                .foregroundColor(getMessageColor(for: message))
-                                .multilineTextAlignment(.leading)
-                            
-                            Spacer()
                         }
-                        .transition(.opacity.combined(with: .slide))
+                        .padding(.horizontal, 32)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
+                    
+                    Spacer()
+                    
+                    // Background processing note
+                    VStack(spacing: 12) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                            
+                            Text("You can navigate to other tabs while your course generates")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        
+                        Button("Continue in Background") {
+                            // Handle background processing
+                        }
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                        )
+                    }
+                    .opacity(progress > 0.2 ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.5), value: progress)
                 }
-                .padding(.horizontal, 40)
             }
-            
-            Spacer()
         }
         .onAppear {
-            setupSparklePositions()
             startAnimations()
+            simulateProgress()
         }
-    }
-    
-    private func setupSparklePositions() {
-        sparklePositions = (0..<8).map { index in
-            let angle = Double(index) * .pi / 4
-            let radius: Double = 80
-            let x = 70 + cos(angle) * radius
-            let y = 70 + sin(angle) * radius
-            return CGPoint(x: x, y: y)
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeInOut(duration: 1.0)) {
-                showSparkles = true
-            }
+        .onChange(of: progress) { newProgress in
+            updateCurrentStep(for: newProgress)
         }
     }
     
     private func startAnimations() {
-        withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-            animationPhase = .pi * 2
+        withAnimation(.easeOut(duration: 1.0)) {
+            animationProgress = 1.0
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeInOut(duration: 0.8)) {
+                showingSteps = true
+            }
+        }
+        
+        createParticles()
+        animateParticles()
+    }
+    
+    private func simulateProgress() {
+        // Simulate progress updates
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+            if progress < 1.0 {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    progress = min(progress + 0.1, 1.0)
+                }
+            } else {
+                timer.invalidate()
+            }
         }
     }
     
-    private func getStatusMessages() -> [String] {
-        [
-            "Analyzing your learning preferences",
-            "Selecting relevant topics and concepts",
-            "Structuring optimal lesson sequence",
-            "Generating personalized content",
-            "Finalizing your custom course"
-        ]
+    private func updateCurrentStep(for progress: Double) {
+        let newStep = min(Int(progress * Double(generationSteps.count)), generationSteps.count - 1)
+        if newStep != currentStep {
+            withAnimation(.spring()) {
+                currentStep = newStep
+            }
+        }
     }
     
-    private func shouldShowCheckmark(for message: String) -> Bool {
-        let messages = getStatusMessages()
-        guard let index = messages.firstIndex(of: message) else { return false }
-        let threshold = Double(index + 1) / Double(messages.count)
-        return progress >= threshold
+    private func createParticles() {
+        particles = (0..<20).map { _ in
+            Particle(
+                position: CGPoint(
+                    x: CGFloat.random(in: 50...350),
+                    y: CGFloat.random(in: 100...700)
+                ),
+                color: [Color.blue, Color.purple, Color.green, Color.cyan].randomElement() ?? .blue,
+                size: CGFloat.random(in: 4...12),
+                scale: CGFloat.random(in: 0.5...1.0),
+                opacity: Double.random(in: 0.3...0.8)
+            )
+        }
     }
     
-    private func shouldShowSpinner(for message: String) -> Bool {
-        let messages = getStatusMessages()
-        guard let index = messages.firstIndex(of: message) else { return false }
-        let threshold = Double(index + 1) / Double(messages.count)
-        let previousThreshold = Double(index) / Double(messages.count)
-        return progress >= previousThreshold && progress < threshold
-    }
-    
-    private func getMessageColor(for message: String) -> Color {
-        if shouldShowCheckmark(for: message) {
-            return .white
-        } else if shouldShowSpinner(for: message) {
-            return .white.opacity(0.9)
-        } else {
-            return .white.opacity(0.5)
+    private func animateParticles() {
+        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 2.0)) {
+                for i in particles.indices {
+                    particles[i].position = CGPoint(
+                        x: CGFloat.random(in: 50...350),
+                        y: CGFloat.random(in: 100...700)
+                    )
+                    particles[i].scale = CGFloat.random(in: 0.5...1.0)
+                    particles[i].opacity = Double.random(in: 0.3...0.8)
+                }
+            }
         }
     }
 }
 
+struct GenerationStepRow: View {
+    let step: String
+    let isCompleted: Bool
+    let isActive: Bool
+    let animationDelay: Double
+    
+    @State private var appeared = false
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Step indicator
+            ZStack {
+                Circle()
+                    .fill(stepColor.opacity(0.2))
+                    .frame(width: 24, height: 24)
+                
+                if isCompleted {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(stepColor)
+                } else if isActive {
+                    Circle()
+                        .fill(stepColor)
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(appeared ? 1.2 : 0.8)
+                        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: appeared)
+                } else {
+                    Circle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                        .frame(width: 12, height: 12)
+                }
+            }
+            
+            // Step text
+            Text(step)
+                .font(.subheadline)
+                .foregroundColor(isCompleted || isActive ? .white : .white.opacity(0.6))
+                .fontWeight(isActive ? .medium : .regular)
+            
+            Spacer()
+        }
+        .opacity(appeared ? 1 : 0)
+        .offset(x: appeared ? 0 : 30)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.6).delay(animationDelay)) {
+                appeared = true
+            }
+        }
+    }
+    
+    private var stepColor: Color {
+        if isCompleted {
+            return .green
+        } else if isActive {
+            return .blue
+        } else {
+            return .white.opacity(0.3)
+        }
+    }
+}
+
+struct Particle: Identifiable {
+    let id = UUID()
+    var position: CGPoint
+    let color: Color
+    let size: CGFloat
+    var scale: CGFloat
+    var opacity: Double
+}
+
 #Preview {
-    GeneratingStepView(topic: "Personal Finance", progress: 0.6)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(red: 0.02, green: 0.05, blue: 0.2),
-                    Color(red: 0.05, green: 0.1, blue: 0.3),
-                    Color(red: 0.08, green: 0.15, blue: 0.4)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+    GeneratingStepView(
+        topic: "World War 2",
+        progress: .constant(0.6)
+    )
 } 

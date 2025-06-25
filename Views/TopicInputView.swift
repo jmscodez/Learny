@@ -228,7 +228,6 @@ struct TopicInputView: View {
                     topic: topic, 
                     difficulty: difficulty, 
                     pace: pace, 
-                    advancedConfig: advancedConfig,
                     isPresented: $showAIChat
                 )
             }

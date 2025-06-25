@@ -589,4 +589,124 @@ final class OpenAIService {
 
         return text
     }
+
+    /// Generates a conversational AI response based on the conversation history and context
+    func generateConversationalResponse(
+        messages: [ChatMessage],
+        courseContext: CourseContext
+    ) async -> String? {
+        
+        // Convert ChatMessage to AIMessage format
+        let aiMessages = messages.map { message in
+            let contentText: String
+            switch message.content {
+            case .text(let text):
+                contentText = text
+            default:
+                contentText = "Non-text message"
+            }
+            
+            return AIMessage(
+                role: message.role == .user ? "user" : "assistant",
+                content: contentText
+            )
+        }
+        
+        // Add system context for the conversation
+        let systemMessage = AIMessage(
+            role: "system",
+            content: """
+            You are an enthusiastic AI learning assistant helping a user customize their course about "\(courseContext.topic)". 
+            
+            Context:
+            - Course Topic: \(courseContext.topic)
+            - User Experience: \(courseContext.experience)
+            - Difficulty Level: \(courseContext.difficulty.rawValue)
+            - Time per Lesson: \(courseContext.timeCommitment) minutes
+            - Selected Topics: \(courseContext.selectedTopics.joined(separator: ", "))
+            
+            Your role is to:
+            1. Ask engaging follow-up questions about what they want to learn
+            2. Understand their specific interests and goals
+            3. Suggest relevant topics and approaches
+            4. Keep the conversation natural and helpful
+            5. Use emojis occasionally to be friendly
+            6. Remember what they've told you and build on it
+            
+            Be conversational, enthusiastic, and focus on understanding what will make this course perfect for them. Ask one clear question at a time and provide 2-3 relevant suggestions when appropriate.
+            """
+        )
+        
+        let allMessages = [systemMessage] + aiMessages
+        let request = AIRequest(model: model, messages: allMessages, max_tokens: 512)
+        
+        do {
+            let data = try await performRequest(request)
+            let response = try JSONDecoder().decode(AIResponse.self, from: data)
+            return response.choices.first?.message.content
+        } catch {
+            print("AI Service Error during conversational response: \(error.localizedDescription)")
+            return "I'm having trouble connecting right now. Could you tell me more about what specific aspects of \(courseContext.topic) interest you most?"
+        }
+    }
+    
+    /// Generates contextual suggestions based on the conversation state
+    func generateContextualSuggestions(
+        conversationHistory: [ChatMessage],
+        courseContext: CourseContext
+    ) async -> [String] {
+        
+        let recentMessages = conversationHistory.suffix(4).map { message in
+            let contentText: String
+            switch message.content {
+            case .text(let text):
+                contentText = text
+            default:
+                contentText = "Non-text message"
+            }
+            return "\(message.role == .user ? "User" : "AI"): \(contentText)"
+        }.joined(separator: "\n")
+        
+        let prompt = """
+        Based on this conversation about a "\(courseContext.topic)" course:
+        
+        \(recentMessages)
+        
+        Generate 3 short, relevant suggestion phrases (4-6 words each) that would help continue the conversation naturally. Focus on specific aspects, learning approaches, or follow-up topics that would be valuable to explore.
+        
+        Return only a JSON array of strings, no other text.
+        """
+        
+        let messages = [AIMessage(role: "user", content: prompt)]
+        let request = AIRequest(model: model, messages: messages, max_tokens: 256, response_format: ["type": "json_object"])
+        
+        do {
+            let data = try await performRequest(request)
+            guard let aiResponse = try? JSONDecoder().decode(AIResponse.self, from: data),
+                  let contentString = aiResponse.choices.first?.message.content,
+                  let jsonData = contentString.data(using: String.Encoding.utf8) else {
+                return defaultSuggestions(for: courseContext.topic)
+            }
+            
+            let suggestions = try JSONDecoder().decode([String].self, from: jsonData)
+            return suggestions
+        } catch {
+            print("Error generating contextual suggestions: \(error)")
+            return defaultSuggestions(for: courseContext.topic)
+        }
+    }
+    
+    private func defaultSuggestions(for topic: String) -> [String] {
+        let topicLower = topic.lowercased()
+        
+        if topicLower.contains("programming") || topicLower.contains("coding") {
+            return ["Practical projects", "Best practices", "Common mistakes"]
+        } else if topicLower.contains("history") {
+            return ["Key events", "Important figures", "Cultural impact"]
+        } else if topicLower.contains("science") {
+            return ["Real-world applications", "Latest discoveries", "Hands-on experiments"]
+        } else {
+            return ["Practical examples", "Advanced concepts", "Real-world applications"]
+        }
+    }
 } 

@@ -331,9 +331,25 @@ struct DialogueScreen: Codable, Identifiable, Hashable {
         self.id = UUID()
     }
     
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(lines, forKey: .lines)
+    }
+    
     init(id: UUID = UUID(), lines: [DialogueLine]) {
         self.id = id
         self.lines = lines
+    }
+    
+    // Hashable conformance
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(lines)
+    }
+    
+    // Equatable conformance
+    static func == (lhs: DialogueScreen, rhs: DialogueScreen) -> Bool {
+        return lhs.id == rhs.id && lhs.lines == rhs.lines
     }
 }
 

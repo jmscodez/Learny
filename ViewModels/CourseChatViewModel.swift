@@ -280,4 +280,130 @@ final class CourseChatViewModel: ObservableObject {
             messages.append(ChatMessage(role: .assistant, content: .errorMessage(errorMessage)))
         }
     }
+}
+
+// Enhanced version for the new onboarding flow
+@MainActor
+final class EnhancedCourseChatViewModel: ObservableObject {
+    // Course configuration
+    let topic: String
+    let difficulty: Difficulty
+    let pace: Pace
+    
+    // User preferences from onboarding
+    @Published var userExperience: String = ""
+    @Published var selectedTopics: [String] = []
+    @Published var preferredLessonTime: Int = 15
+    @Published var studyFrequency: String = ""
+    @Published var desiredLessonCount: Int = 6
+    
+    // Generation state
+    @Published var generationProgress: Double = 0.0
+    @Published var suggestedLessons: [LessonSuggestion] = []
+    @Published var isGenerating: Bool = false
+    
+    // Computed properties
+    var selectedLessons: [LessonSuggestion] {
+        suggestedLessons.filter(\.isSelected)
+    }
+    
+    private let aiService = OpenAIService.shared
+    
+    init(topic: String, difficulty: Difficulty, pace: Pace) {
+        self.topic = topic
+        self.difficulty = difficulty
+        self.pace = pace
+    }
+    
+    /// Generates personalized course based on all user preferences
+    func generatePersonalizedCourse() async {
+        isGenerating = true
+        generationProgress = 0.0
+        
+        // Simulate progress updates
+        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+            Task { @MainActor in
+                if self.generationProgress < 0.9 {
+                    self.generationProgress += 0.1
+                } else {
+                    timer.invalidate()
+                }
+            }
+        }
+        
+        // Generate lessons using AI service
+        let lessons = await aiService.generatePersonalizedLessonIdeas(
+            for: topic,
+            difficulty: difficulty,
+            pace: pace,
+            experience: userExperience,
+            interests: selectedTopics,
+            goals: [], // Could be added as another onboarding step
+            timeCommitment: preferredLessonTime
+        )
+        
+        await MainActor.run {
+            progressTimer.invalidate()
+            generationProgress = 1.0
+            
+            if let lessons = lessons {
+                suggestedLessons = lessons
+                // Auto-select a reasonable number based on desired count
+                let autoSelectCount = min(desiredLessonCount, lessons.count)
+                for i in 0..<autoSelectCount {
+                    suggestedLessons[i].isSelected = true
+                }
+            } else {
+                // Fallback lessons if AI generation fails
+                suggestedLessons = createFallbackLessons()
+            }
+            
+            isGenerating = false
+        }
+    }
+    
+    /// Generates additional lessons for the "Generate More" feature
+    func generateAdditionalLessons() async {
+        let existingTitles = suggestedLessons.map { $0.title }
+        
+        let newLessons = await aiService.generateInitialLessonIdeas(
+            for: topic,
+            difficulty: difficulty,
+            pace: pace,
+            count: 3
+        )
+        
+        if let newLessons = newLessons {
+            // Filter out any lessons with similar titles
+            let filteredLessons = newLessons.filter { newLesson in
+                !existingTitles.contains { existing in
+                    existing.lowercased().contains(newLesson.title.lowercased().prefix(10))
+                }
+            }
+            
+            await MainActor.run {
+                suggestedLessons.append(contentsOf: filteredLessons)
+            }
+        }
+    }
+    
+    private func createFallbackLessons() -> [LessonSuggestion] {
+        // Create basic fallback lessons based on topic
+        let fallbackTitles = [
+            "Introduction to \(topic)",
+            "Key Concepts in \(topic)",
+            "Practical Applications of \(topic)",
+            "Advanced Topics in \(topic)",
+            "Real-World Examples of \(topic)",
+            "Common Challenges in \(topic)"
+        ]
+        
+        return fallbackTitles.enumerated().map { index, title in
+            LessonSuggestion(
+                title: title,
+                description: "A comprehensive lesson covering important aspects of \(title.lowercased()).",
+                isSelected: index < 4 // Auto-select first 4
+            )
+        }
+    }
 } 

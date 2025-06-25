@@ -47,16 +47,21 @@ struct ExperienceStepView: View {
     ]
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 32) {
-                Spacer(minLength: 20)
-                
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Header - Fixed height
                 headerSection
-                experienceLevelsSection
+                    .frame(height: geometry.size.height * 0.2)
                 
-                Spacer(minLength: 40)
-                continueButton
-                Spacer(minLength: 60)
+                // Experience levels - Flexible space
+                experienceLevelsSection
+                    .frame(maxHeight: .infinity)
+                
+                // Continue button - Fixed at bottom
+                if !selectedExperience.isEmpty {
+                    continueButton
+                        .padding(.bottom, 20)
+                }
             }
         }
         .onAppear {
@@ -69,26 +74,27 @@ struct ExperienceStepView: View {
     // MARK: - View Components
     
     private var headerSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 8) {
             Text("What's your experience level?")
-                .font(.largeTitle)
+                .font(.title)
                 .fontWeight(.bold)
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
                 .scaleEffect(animationProgress)
                 .opacity(animationProgress)
             
-            Text("This helps us tailor the course complexity and pace to match your current knowledge")
-                .font(.title3)
+            Text("This helps us tailor the course complexity and pace")
+                .font(.subheadline)
                 .foregroundColor(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
                 .opacity(animationProgress)
         }
+        .padding(.top, 20)
     }
     
     private var experienceLevelsSection: some View {
-        LazyVStack(spacing: 16) {
+        VStack(spacing: 12) {
             ForEach(Array(experienceLevels.enumerated()), id: \.element.id) { index, level in
                 ExperienceLevelCard(
                     level: level,
@@ -176,7 +182,7 @@ struct ExperienceLevelCard: View {
                 .animation(.spring(), value: isSelected)
                 
                 // Content Section
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(level.title)
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -202,7 +208,7 @@ struct ExperienceLevelCard: View {
                     .scaleEffect(isSelected ? 1.2 : 1.0)
                     .animation(.spring(), value: isSelected)
             }
-            .padding(20)
+            .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 20)
                     .fill(

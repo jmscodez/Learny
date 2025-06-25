@@ -548,21 +548,21 @@ private struct TodayStatsView: View {
                 .foregroundColor(.white)
             
             HStack(spacing: 16) {
-                StatCard(
+                TimerStatCard(
                     title: "Time Studied",
                     value: timerManager.formattedTime(timerManager.todayTotalTime),
                     icon: "clock.fill",
                     color: .blue
                 )
                 
-                StatCard(
+                TimerStatCard(
                     title: "Sessions",
                     value: "\(timerManager.sessionsCompletedToday)",
                     icon: "checkmark.circle.fill",
                     color: .green
                 )
                 
-                StatCard(
+                TimerStatCard(
                     title: "Streak",
                     value: "\(timerManager.currentStreak)",
                     icon: "flame.fill",
@@ -583,7 +583,7 @@ private struct TodayStatsView: View {
     }
 }
 
-private struct StatCard: View {
+private struct TimerStatCard: View {
     let title: String
     let value: String
     let icon: String

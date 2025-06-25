@@ -80,6 +80,33 @@ struct CourseOverviewView: View {
                                 ).asColor(), lineWidth: 1)
                         )
                         
+                        // Generate Course Button
+                        Button(action: {
+                            // Action to generate the course
+                            // This would typically navigate to course creation or start the course
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title3)
+                                Text("Generate Course")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(16)
+                            .shadow(color: .purple.opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                        .padding(.horizontal)
+                        
                         Spacer(minLength: 40)
                     }
                     .padding(.horizontal)
