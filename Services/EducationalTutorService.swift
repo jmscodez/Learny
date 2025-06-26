@@ -110,17 +110,32 @@ class EducationalTutorService {
         
         TASK: Generate an enthusiastic, personalized welcome message for a learner who wants to create custom lessons about "\(topic)".
         
-        REQUIREMENTS:
+        FORMATTING REQUIREMENTS:
+        - Use **bold text** for key terms and emphasis (surround with **)
+        - Use bullet points (•) for lists of aspects or features
+        - Break content into digestible paragraphs with line breaks
+        - Make important concepts stand out visually
+        
+        CONTENT REQUIREMENTS:
         - Show expertise and passion for the subject
         - Acknowledge the complexity and richness of the topic
+        - Highlight 2-3 specific fascinating aspects as bullet points
         - Ask an engaging question that reveals their specific interests
         - Keep it conversational but professional
-        - Length: 2-3 sentences maximum
         
-        EXAMPLE TONE: "That's fascinating! [Topic] has so many incredible layers - from [specific aspect] to [another aspect]. What drew you to this particular area? I'd love to understand what specifically captures your curiosity so I can create lessons that really resonate with you."
+        EXAMPLE FORMAT:
+        "That's fascinating! **[Topic]** has so many incredible layers:
+        
+        • **[Specific aspect]** and its impact
+        • **[Another aspect]** that shaped history
+        • **[Third aspect]** that continues today
+        
+        **What aspect draws you in most?** Is it [specific area], [another area], or perhaps [third area]?"
+        
+        TOPIC: \(topic)
         """
         
-        return await callTutorAPI(prompt: prompt) ?? "I'm excited to help you explore \(topic)! What specific aspects interest you most?"
+        return await callTutorAPI(prompt: prompt) ?? "I'm excited to help you explore **\(topic)**! What specific aspects interest you most?"
     }
     
     func generateFollowUpQuestions(for topic: String, userInput: String) async -> [String] {
@@ -305,16 +320,29 @@ class EducationalTutorService {
         
         TASK: Generate an enthusiastic, insightful response that shows you understand their interest and guides them to the next step.
         
-        REQUIREMENTS:
+        FORMATTING REQUIREMENTS:
+        - Use **bold text** for key terms and emphasis (surround with **)
+        - Use bullet points (•) for lists when appropriate
+        - Break content into digestible parts with line breaks
+        - Make important concepts stand out visually
+        
+        CONTENT REQUIREMENTS:
         - Show genuine excitement about their specific interest
         - Demonstrate subject matter expertise
         - Connect their interest to broader learning opportunities
         - Guide them naturally to the next conversation step
         - Keep it conversational and encouraging
-        - Length: 1-2 sentences maximum
+        
+        EXAMPLE FORMAT:
+        "**Excellent choice!** [Specific topic] is absolutely fascinating because:
+        
+        • **[Key aspect]** that most people don't know about
+        • **[Another aspect]** that connects to modern day
+        
+        **What specifically draws you to this area?** [Follow-up question]"
         """
         
-        return await callTutorAPI(prompt: prompt) ?? "That's fascinating! Let me ask you some more specific questions to create the perfect lessons for you."
+        return await callTutorAPI(prompt: prompt) ?? "**That's fascinating!** Let me ask you some more specific questions to create the perfect lessons for you."
     }
     
     // MARK: - API Integration

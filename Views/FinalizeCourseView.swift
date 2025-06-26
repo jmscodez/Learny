@@ -72,7 +72,7 @@ struct FinalizeCourseView: View {
                         }
                         .padding(.horizontal, 20)
                     }
-                    
+
                     // Action buttons
                     VStack(spacing: 16) {
                         ModernGenerateButton(action: startGeneration)
@@ -148,7 +148,7 @@ private struct ModernLessonRow: View {
             // Lesson number
             ZStack {
                 Circle()
-                    .fill(color)
+                .fill(color)
                     .frame(width: 32, height: 32)
                 
                 Text("\(index)")
@@ -176,7 +176,7 @@ private struct ModernLessonRow: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.white.opacity(0.05))
-                .overlay(
+        .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )

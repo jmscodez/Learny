@@ -33,6 +33,7 @@ struct SpecificInterest: Identifiable {
 enum ConversationStage {
     case initial
     case selectingTopicInterests    // New: Pill selection stage
+    case choosingPath              // New: Two-path selection stage
     case selectingSpecificInterests // New: Multi-select stage
     case gatheringDetails
     case generatingLessons
@@ -54,10 +55,16 @@ struct ChatOverlayView: View {
     @State private var showingFinalLessonOptions: Bool = false
     @State private var selectedLessonOptions: Set<String> = []
     
+    // Two-path selection states
+    @State private var showingTwoPathSelection: Bool = false
+    
     // New interactive selection states
     @State private var topicPills: [TopicPill] = []
     @State private var showingTopicPills: Bool = false
     @State private var selectedTopicPill: TopicPill?
+    
+    // Loading states
+    @State private var isInitializing: Bool = true
     
     @State private var specificInterests: [SpecificInterest] = []
     @State private var showingSpecificInterests: Bool = false
@@ -71,62 +78,72 @@ struct ChatOverlayView: View {
     var body: some View {
         ZStack {
             // Background
-            LinearGradient(
-                colors: [
+                LinearGradient(
+                    colors: [
                     Color(red: 0.05, green: 0.05, blue: 0.15),
                     Color(red: 0.1, green: 0.1, blue: 0.25),
                     Color(red: 0.15, green: 0.1, blue: 0.3)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
+    
+        VStack(spacing: 0) {
                 // Header
-                HStack {
+            HStack {
                     Button("Done") {
                         dismiss()
                     }
                     .foregroundColor(.blue)
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 4) {
-                        Text("Perfect Your Course")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                        
-                        Text("Interactive AI Tutor")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    
-                    Spacer()
-                    
-                    Text("") // Placeholder for balance
-                        .frame(width: 44)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
                 
+                Spacer()
+                
+                VStack(spacing: 4) {
+                        Text("Perfect Your Course")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                        Text("Interactive AI Tutor")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                
+                Spacer()
+                
+                    Text("") // Placeholder for balance
+                .frame(width: 44)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            
                 // Chat Content
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(chatMessages, id: \.id) { message in
-                                ChatMessageBubble(message: message)
-                                    .id(message.id)
-                            }
-                            
-                            if isTyping {
-                                TypingIndicatorView()
-                                    .id("typing")
+                        LazyVStack(spacing: 20) {
+                            // Initial loading state
+                            if isInitializing {
+                                InitialLoadingView(topic: viewModel.topic)
+                                    .id("initialloading")
+                            } else {
+                                // Welcome Header Section
+                                WelcomeHeaderView(topic: viewModel.topic)
+                                    .id("welcomeheader")
+                                
+                                ForEach(chatMessages, id: \.id) { message in
+                                    ChatMessageBubble(message: message)
+                                        .id(message.id)
+                                }
+                                
+                                if isTyping {
+                                    TypingIndicatorView()
+                                        .id("typing")
+                                }
                             }
                             
                             // Topic Pills Selection
-                            if showingTopicPills && !topicPills.isEmpty {
+                            if !isInitializing && showingTopicPills && !topicPills.isEmpty {
                                 TopicPillsView(
                                     pills: topicPills,
                                     onPillSelected: { pill in
@@ -136,8 +153,21 @@ struct ChatOverlayView: View {
                                 .id("topicpills")
                             }
                             
+                            // Two-Path Selection
+                            if !isInitializing && showingTwoPathSelection {
+                                TwoPathSelectionView(
+                                    onCustomizeDetails: {
+                                        handleCustomizeDetailsPath()
+                                    },
+                                    onGenerateForMe: {
+                                        handleGenerateForMePath()
+                                    }
+                                )
+                                .id("twopathselection")
+                            }
+                            
                             // Specific Interests Multi-Select
-                            if showingSpecificInterests && !specificInterests.isEmpty {
+                            if !isInitializing && showingSpecificInterests && !specificInterests.isEmpty {
                                 SpecificInterestsView(
                                     interests: $specificInterests,
                                     onContinue: {
@@ -151,7 +181,7 @@ struct ChatOverlayView: View {
                             }
                             
                             // Final lesson options
-                            if showingFinalLessonOptions && !finalLessonOptions.isEmpty {
+                            if !isInitializing && showingFinalLessonOptions && !finalLessonOptions.isEmpty {
                                 FinalLessonOptionsView(
                                     options: finalLessonOptions,
                                     selectedOptions: $selectedLessonOptions,
@@ -163,7 +193,7 @@ struct ChatOverlayView: View {
                             }
                             
                             // Conversation Encouragement
-                            if showingConversationPrompt && !conversationPrompts.isEmpty {
+                            if !isInitializing && showingConversationPrompt && !conversationPrompts.isEmpty {
                                 ConversationEncouragementView(
                                     prompts: conversationPrompts,
                                     onPromptSelected: { prompt in
@@ -174,7 +204,7 @@ struct ChatOverlayView: View {
                             }
                             
                             // Post-Creation Options
-                            if showingPostCreationOptions {
+                            if !isInitializing && showingPostCreationOptions {
                                 PostCreationOptionsView(
                                     onCreateMore: {
                                         handleCreateMoreLessons()
@@ -187,8 +217,8 @@ struct ChatOverlayView: View {
                             }
                             
                             Spacer(minLength: 100)
-                        }
-                        .padding(.horizontal, 20)
+            }
+            .padding(.horizontal, 20)
                         .padding(.top, 10)
                     }
                     .onChange(of: chatMessages.count) { _ in
@@ -210,43 +240,43 @@ struct ChatOverlayView: View {
                 // Input Area (only show when appropriate)
                 if conversationStage == .gatheringDetails || conversationStage == .completed {
                     VStack(spacing: 12) {
-                        Divider()
-                            .background(Color.white.opacity(0.2))
-                        
-                        HStack(spacing: 12) {
+            Divider()
+                .background(Color.white.opacity(0.2))
+            
+            HStack(spacing: 12) {
                             TextField("Share your thoughts or ask a question...", text: $userMessage)
-                                .textFieldStyle(PlainTextFieldStyle())
+                    .textFieldStyle(PlainTextFieldStyle())
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
                                     RoundedRectangle(cornerRadius: 24)
-                                        .fill(Color.white.opacity(0.1))
-                                        .overlay(
+                            .fill(Color.white.opacity(0.1))
+                            .overlay(
                                             RoundedRectangle(cornerRadius: 24)
                                                 .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                        )
-                                )
-                            
-                            Button(action: sendMessage) {
+                            )
+                    )
+                
+                Button(action: sendMessage) {
                                 Image(systemName: "arrow.up.circle.fill")
                                     .font(.title2)
                                     .foregroundStyle(
-                                        LinearGradient(
+                            LinearGradient(
                                             colors: userMessage.isEmpty ? [.gray] : [.blue, .purple],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                             }
                             .disabled(userMessage.isEmpty)
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
                     }
-                    .background(Color.black.opacity(0.3))
-                }
-            }
+            .background(Color.black.opacity(0.3))
+        }
+    }
         }
         .onAppear {
             setupInitialMessage()
@@ -260,7 +290,7 @@ struct ChatOverlayView: View {
         
         let text = userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         userMessage = ""
-        
+    
         // Add user message
         let userChatMessage = ChatMessage(role: .user, content: .text(text))
         chatMessages.append(userChatMessage)
@@ -291,6 +321,8 @@ struct ChatOverlayView: View {
             return "This shouldn't happen - initial stage handled in setupInitialMessage"
         case .selectingTopicInterests:
             return "Please select one of the topic areas above to continue."
+        case .choosingPath:
+            return "Please choose how you'd like to explore this topic using the buttons above."
         case .selectingSpecificInterests:
             return "Please select your specific interests above and tap Continue."
         case .gatheringDetails:
@@ -335,7 +367,7 @@ struct ChatOverlayView: View {
             chatMessages.append(userMessage)
             
             // Show AI response encouraging them to type their own interest
-            let aiResponse = "Perfect! I love when learners have specific interests in mind. Please type what aspect of \(viewModel.topic) you're most curious about, and I'll create personalized options based on your input."
+            let aiResponse = "**Perfect!** I love when learners have specific interests in mind. \n\n**What aspect of \(viewModel.topic) are you most curious about?** Please share your thoughts, and I'll create personalized lessons based on your input."
             let aiMessage = ChatMessage(role: .assistant, content: .text(aiResponse))
             chatMessages.append(aiMessage)
             
@@ -349,29 +381,13 @@ struct ChatOverlayView: View {
         let userMessage = ChatMessage(role: .user, content: .text(pill.title))
         chatMessages.append(userMessage)
         
-        // Show typing and generate specific interests
-        isTyping = true
+        // Show simple AI response with question
+        let aiResponse = ChatMessage(role: .assistant, content: .text("**Great choice!** How would you like to explore **\(pill.title)**?"))
+        chatMessages.append(aiResponse)
         
-        Task {
-            let interests = await generateSpecificInterests(for: pill)
-            let response = await EducationalTutorService.shared.generateEngagingResponse(
-                for: pill.title,
-                context: "User selected \(pill.title) for \(viewModel.topic)"
-            )
-            
-            DispatchQueue.main.async {
-                self.isTyping = false
-                
-                // Add AI response
-                let aiMessage = ChatMessage(role: .assistant, content: .text(response))
-                self.chatMessages.append(aiMessage)
-                
-                // Show specific interests selection
-                self.specificInterests = interests
-                self.showingSpecificInterests = true
-                self.conversationStage = .selectingSpecificInterests
-            }
-        }
+        // Show two-path selection
+        showingTwoPathSelection = true
+        conversationStage = .choosingPath
     }
     
     private func handleSpecificInterestsSelection() {
@@ -390,7 +406,7 @@ struct ChatOverlayView: View {
         conversationStage = .generatingLessons
         
         Task {
-            let response = "Excellent! Based on your selections, I'm creating personalized lessons that match your specific interests. Here are the custom lessons I've designed for you:"
+            let response = "**Excellent!** Based on your selections, I'm creating personalized lessons that match your specific interests. \n\n**Here are the custom lessons I've designed for you:**"
             
             DispatchQueue.main.async {
                 self.isTyping = false
@@ -413,9 +429,56 @@ struct ChatOverlayView: View {
         chatMessages.append(userMessage)
         
         // Add AI response encouraging them to type
-        let aiResponse = "Perfect! Please tell me exactly what aspect of \(viewModel.topic) interests you most, and I'll create personalized lessons based on your input."
+        let aiResponse = "**Perfect!** Please tell me exactly what aspect of **\(viewModel.topic)** interests you most, and I'll create personalized lessons based on your input."
         let aiMessage = ChatMessage(role: .assistant, content: .text(aiResponse))
         chatMessages.append(aiMessage)
+    }
+    
+    private func handleCustomizeDetailsPath() {
+        guard let selectedPill = selectedTopicPill else { return }
+        
+        showingTwoPathSelection = false
+        conversationStage = .gatheringDetails
+        
+        // Add user selection message
+        let userMessage = ChatMessage(role: .user, content: .text("I want to customize the details"))
+        chatMessages.append(userMessage)
+        
+        // Add AI response encouraging detailed input
+        let aiResponse = "**Perfect!** Tell me exactly what aspects of **\(selectedPill.title)** you want to learn about. The more specific you are, the better I can tailor your lesson!"
+        let aiMessage = ChatMessage(role: .assistant, content: .text(aiResponse))
+        chatMessages.append(aiMessage)
+    }
+    
+    private func handleGenerateForMePath() {
+        guard let selectedPill = selectedTopicPill else { return }
+        
+        showingTwoPathSelection = false
+        
+        // Add user selection message
+        let userMessage = ChatMessage(role: .user, content: .text("Generate lessons for me"))
+        chatMessages.append(userMessage)
+        
+        // Show typing and generate specific interests (same as before)
+        isTyping = true
+        
+        Task {
+            let interests = await generateSpecificInterests(for: selectedPill)
+            
+            DispatchQueue.main.async {
+                self.isTyping = false
+                
+                // Add AI response
+                let aiResponse = "**Excellent!** I've created some focused options for **\(selectedPill.title)**. Select the areas that interest you most:"
+                let aiMessage = ChatMessage(role: .assistant, content: .text(aiResponse))
+                self.chatMessages.append(aiMessage)
+                
+                // Show specific interests selection
+                self.specificInterests = interests
+                self.showingSpecificInterests = true
+                self.conversationStage = .selectingSpecificInterests
+            }
+        }
     }
     
     private func handleConversationPrompt(_ prompt: String) {
@@ -477,7 +540,7 @@ struct ChatOverlayView: View {
         }
         
         let count = selectedLessonOptions.count
-        let response = "Perfect! I've created \(count) personalized lesson\(count > 1 ? "s" : "") based on our conversation. They now appear in your course selection with the 'AI Custom' badge."
+        let response = "**Perfect!** I've created **\(count) personalized lesson\(count > 1 ? "s" : "")** based on our conversation. \n\n• They now appear in your course selection with the **'AI Custom'** badge\n• Each lesson is tailored to your specific interests\n• You can continue chatting to create more lessons anytime!"
         let aiMessage = ChatMessage(role: .assistant, content: .text(response))
         chatMessages.append(aiMessage)
         
@@ -522,19 +585,22 @@ struct ChatOverlayView: View {
     
     private func setupInitialMessage() {
         Task {
-            let welcomeMessage = await EducationalTutorService.shared.generateInitialResponse(for: viewModel.topic)
             let pills = await generateTopicPills(for: viewModel.topic)
             
             DispatchQueue.main.async {
-                let initialMessage = ChatMessage(role: .assistant, content: .text(welcomeMessage))
-                self.chatMessages.append(initialMessage)
-                
-                // Show topic pills
+                // Show topic pills directly without any message
                 self.topicPills = pills
                 self.showingTopicPills = true
                 self.conversationStage = .selectingTopicInterests
+                self.isInitializing = false
             }
         }
+    }
+    
+        private func createWelcomeMessage(for topic: String) -> String {
+        return """
+        **What aspect of \(topic) sparks your curiosity?**
+        """
     }
 }
 
@@ -600,71 +666,309 @@ extension ChatOverlayView {
     }
 }
 
-// MARK: - UI Components
+// MARK: - Enhanced Message Formatting Helper
+extension String {
+    func toAttributedString() -> AttributedString {
+        var attributedString = AttributedString(self)
+        
+        // Convert **bold** text
+        let boldPattern = #"\*\*(.*?)\*\*"#
+        let boldRegex = try! NSRegularExpression(pattern: boldPattern, options: [])
+        let nsString = self as NSString
+        let matches = boldRegex.matches(in: self, options: [], range: NSRange(location: 0, length: nsString.length))
+        
+        for match in matches.reversed() {
+            let range = match.range(at: 1)
+            if range.location != NSNotFound {
+                let boldText = nsString.substring(with: range)
+                let fullRange = match.range
+                let startIndex = attributedString.characters.index(attributedString.startIndex, offsetBy: fullRange.location)
+                let endIndex = attributedString.characters.index(startIndex, offsetBy: fullRange.length)
+                
+                attributedString.replaceSubrange(startIndex..<endIndex, with: AttributedString(boldText))
+                attributedString[startIndex..<attributedString.characters.index(startIndex, offsetBy: boldText.count)].font = .headline.bold()
+            }
+        }
+        
+        return attributedString
+    }
+    
+    func formatForChat() -> [ChatTextSegment] {
+        var segments: [ChatTextSegment] = []
+        let lines = self.components(separatedBy: .newlines)
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            if trimmedLine.isEmpty {
+                continue
+            }
+            
+            // Check for bullet points
+            if trimmedLine.hasPrefix("•") || trimmedLine.hasPrefix("-") {
+                let bulletText = String(trimmedLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+                segments.append(ChatTextSegment(text: bulletText, type: .bullet))
+            }
+            // Check for bold text (surrounded by **)
+            else if trimmedLine.contains("**") {
+                segments.append(ChatTextSegment(text: trimmedLine, type: .bold))
+            }
+            // Regular text
+            else {
+                segments.append(ChatTextSegment(text: trimmedLine, type: .regular))
+            }
+        }
+        
+        return segments
+    }
+}
 
-struct FollowUpQuestionView: View {
-    let question: FollowUpQuestion
-    let onAnswerSelected: (String) -> Void
+struct ChatTextSegment {
+    let text: String
+    let type: ChatTextType
+}
+
+enum ChatTextType {
+    case regular
+    case bold
+    case bullet
+    case heading
+}
+
+struct ChatMessageBubble: View {
+    let message: ChatMessage
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(question.question)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
-                .multilineTextAlignment(.leading)
-            
-            if question.allowsTextInput {
-                // Text input for detailed responses
-                VStack(spacing: 8) {
-                    Text("Type your detailed response:")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                    
-                    TextField("Share your thoughts...", text: .constant(""))
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onSubmit {
-                            // Handle text input submission
-                        }
-                }
+        HStack {
+            if message.role == .user {
+                Spacer()
+                userMessageBubble
             } else {
-                // Multiple choice options
-                LazyVGrid(columns: [GridItem(.flexible())], spacing: 8) {
-                    ForEach(question.options, id: \.self) { option in
-                        Button(action: {
-                            onAnswerSelected(option)
-                        }) {
-                            HStack {
-                                Text(option)
-                                    .font(.subheadline)
-                                    .foregroundColor(.white)
-                                    .multilineTextAlignment(.leading)
-                                Spacer()
-                            }
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.white.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
+                assistantMessageBubble
+                Spacer()
+            }
+        }
+    }
+    
+    private var userMessageBubble: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            switch message.content {
+            case .text(let text):
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+                    .padding(12)
+                    .background(
+                            LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(16)
+                    .frame(maxWidth: 280, alignment: .trailing)
+            default:
+                // Handle other content types if needed
+                Text("Message")
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+                    .padding(12)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(16)
+                    .frame(maxWidth: 280, alignment: .trailing)
+            }
+        }
+    }
+    
+    private var assistantMessageBubble: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            switch message.content {
+            case .text(let text):
+                // Enhanced formatting for AI messages
+                FormattedChatText(text: text)
+                    .padding(16)
+                    .background(Color.white.opacity(0.15))
+                    .cornerRadius(16)
+                    .frame(maxWidth: 300, alignment: .leading)
+            default:
+                // Handle other content types if needed
+                Text("Message")
+                    .font(.subheadline)
+                        .foregroundColor(.white)
+                    .padding(12)
+                    .background(Color.white.opacity(0.15))
+                    .cornerRadius(16)
+                    .frame(maxWidth: 280, alignment: .leading)
+            }
+        }
+    }
+}
+
+struct FormattedChatText: View {
+    let text: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            let segments = text.formatForChat()
+            
+            ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
+                HStack(alignment: .top, spacing: 8) {
+                    if segment.type == .bullet {
+                        Text("•")
+                            .font(.subheadline)
+                            .foregroundColor(.cyan)
+                            .fontWeight(.bold)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        switch segment.type {
+                        case .regular:
+                            Text(segment.text)
+                                .font(.subheadline)
+                        .foregroundColor(.white)
+                                .fixedSize(horizontal: false, vertical: true)
+                        case .bold:
+                            Text(formatBoldText(segment.text))
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .fixedSize(horizontal: false, vertical: true)
+                        case .bullet:
+                            Text(segment.text)
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.9))
+                                .fixedSize(horizontal: false, vertical: true)
+                        case .heading:
+                            Text(segment.text)
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                    }
+                    
+                    if segment.type != .bullet {
+                        Spacer()
                     }
                 }
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.blue.opacity(0.2))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.blue.opacity(0.4), lineWidth: 1)
-                )
-        )
+    }
+    
+    private func formatBoldText(_ text: String) -> AttributedString {
+        var attributedString = AttributedString(text)
+        
+        // Find and format **bold** text
+        let boldPattern = #"\*\*(.*?)\*\*"#
+        let nsString = text as NSString
+        
+        if let regex = try? NSRegularExpression(pattern: boldPattern, options: []) {
+            let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+            
+            // Process matches in reverse order to maintain correct indices
+            for match in matches.reversed() {
+                let fullRange = match.range
+                let contentRange = match.range(at: 1)
+                
+                if contentRange.location != NSNotFound {
+                    let boldText = nsString.substring(with: contentRange)
+                    
+                    // Convert NSRange to String.Index
+                    if let startIndex = text.index(text.startIndex, offsetBy: fullRange.location, limitedBy: text.endIndex),
+                       let endIndex = text.index(startIndex, offsetBy: fullRange.length, limitedBy: text.endIndex) {
+                        
+                        // Convert to AttributedString indices
+                        let attrStartIndex = attributedString.characters.index(attributedString.startIndex, offsetBy: fullRange.location)
+                        let attrEndIndex = attributedString.characters.index(attrStartIndex, offsetBy: fullRange.length)
+                        
+                        // Replace the **text** with just text and make it bold
+                        attributedString.replaceSubrange(attrStartIndex..<attrEndIndex, with: AttributedString(boldText))
+                        let newEndIndex = attributedString.characters.index(attrStartIndex, offsetBy: boldText.count)
+                        attributedString[attrStartIndex..<newEndIndex].font = .subheadline.bold()
+                        attributedString[attrStartIndex..<newEndIndex].foregroundColor = .white
+                    }
+                }
+            }
+        }
+        
+        return attributedString
+    }
+}
+
+struct TypingIndicatorView: View {
+    @State private var animationPhase = 0
+    @State private var shimmerOffset: CGFloat = -200
+    
+    var body: some View {
+        HStack {
+            HStack(spacing: 12) {
+                // Animated dots
+                HStack(spacing: 4) {
+                    ForEach(0..<3) { index in
+                        Circle()
+                            .fill(Color.cyan.opacity(0.8))
+                            .frame(width: 8, height: 8)
+                            .scaleEffect(animationPhase == index ? 1.4 : 0.8)
+                            .animation(
+                                Animation.easeInOut(duration: 0.6)
+                                    .repeatForever()
+                                    .delay(Double(index) * 0.2),
+                                value: animationPhase
+                            )
+                    }
+                }
+                
+                // Loading text with shimmer effect
+                Text("AI is thinking...")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
+                    .overlay(
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.clear,
+                                        Color.white.opacity(0.3),
+                                        Color.clear
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: 50)
+                            .offset(x: shimmerOffset)
+                            .clipped()
+                    )
+                    .onAppear {
+                        withAnimation(
+                            Animation.linear(duration: 1.5)
+                                .repeatForever(autoreverses: false)
+                        ) {
+                            shimmerOffset = 200
+                        }
+                    }
+            }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.white.opacity(0.1))
+                                .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.cyan.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            
+            Spacer()
+        }
+        .onAppear {
+            animationPhase = 0
+        }
     }
 }
 
@@ -692,7 +996,7 @@ struct FinalLessonOptionsView: View {
                         onToggle: {
                             if selectedOptions.contains(option.id.uuidString) {
                                 selectedOptions.remove(option.id.uuidString)
-                            } else {
+            } else {
                                 selectedOptions.insert(option.id.uuidString)
                             }
                         }
@@ -716,7 +1020,7 @@ struct FinalLessonOptionsView: View {
                             endPoint: .trailing
                         )
                     )
-                    .foregroundColor(.white)
+                        .foregroundColor(.white)
                     .cornerRadius(12)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -784,154 +1088,6 @@ struct FinalLessonOptionRow: View {
     }
 }
 
-struct ChatMessageBubble: View {
-    let message: ChatMessage
-    
-    var body: some View {
-        HStack {
-            if message.role == .user {
-                Spacer()
-                userMessageBubble
-            } else {
-                assistantMessageBubble
-                Spacer()
-            }
-        }
-    }
-    
-    private var userMessageBubble: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            switch message.content {
-            case .text(let text):
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(16)
-                    .frame(maxWidth: 280, alignment: .trailing)
-            default:
-                // Handle other content types if needed
-                Text("Message")
-                    .font(.subheadline)
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(16)
-                    .frame(maxWidth: 280, alignment: .trailing)
-            }
-        }
-    }
-    
-    private var assistantMessageBubble: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            switch message.content {
-            case .text(let text):
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .background(Color.white.opacity(0.15))
-                    .cornerRadius(16)
-                    .frame(maxWidth: 280, alignment: .leading)
-            default:
-                // Handle other content types if needed
-                Text("Message")
-                    .font(.subheadline)
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .background(Color.white.opacity(0.15))
-                    .cornerRadius(16)
-                    .frame(maxWidth: 280, alignment: .leading)
-            }
-        }
-    }
-}
-
-struct TypingIndicatorView: View {
-    @State private var animationPhase = 0
-    @State private var shimmerOffset: CGFloat = -200
-    
-    var body: some View {
-        HStack {
-            HStack(spacing: 12) {
-                // Animated dots
-                HStack(spacing: 4) {
-                    ForEach(0..<3) { index in
-                        Circle()
-                            .fill(Color.cyan.opacity(0.8))
-                            .frame(width: 8, height: 8)
-                            .scaleEffect(animationPhase == index ? 1.4 : 0.8)
-                            .animation(
-                                Animation.easeInOut(duration: 0.6)
-                                    .repeatForever()
-                                    .delay(Double(index) * 0.2),
-                                value: animationPhase
-                            )
-                    }
-                }
-                
-                // Loading text with shimmer effect
-                Text("AI is thinking...")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
-                    .overlay(
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.clear,
-                                        Color.white.opacity(0.3),
-                                        Color.clear
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: 50)
-                            .offset(x: shimmerOffset)
-                            .clipped()
-                    )
-                    .onAppear {
-                        withAnimation(
-                            Animation.linear(duration: 1.5)
-                                .repeatForever(autoreverses: false)
-                        ) {
-                            shimmerOffset = 200
-                        }
-                    }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.white.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.cyan.opacity(0.3), lineWidth: 1)
-                    )
-            )
-            
-            Spacer()
-        }
-        .onAppear {
-            animationPhase = 0
-        }
-    }
-}
-
 // MARK: - New Interactive UI Components
 
 struct TopicPillsView: View {
@@ -939,22 +1095,32 @@ struct TopicPillsView: View {
     let onPillSelected: (TopicPill) -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("What sparks your curiosity?")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 4)
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "sparkles")
+                        .font(.title2)
+                        .foregroundColor(.cyan)
+                    
+                    Text("Choose Your Focus")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                }
+                
+                Text("Select the areas that interest you most:")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+            .padding(.horizontal, 4)
             
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
+            // Changed to single column layout for better text display
+            LazyVStack(spacing: 12) {
                 ForEach(pills) { pill in
                     Button(action: {
                         onPillSelected(pill)
                     }) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 12) {
                             Text(pill.icon)
                                 .font(.title2)
                             
@@ -963,6 +1129,8 @@ struct TopicPillsView: View {
                                 .fontWeight(.medium)
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.leading)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
                             
                             Spacer()
                             
@@ -973,10 +1141,10 @@ struct TopicPillsView: View {
                                     .foregroundColor(.white.opacity(0.7))
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 16)
                         .background(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 16)
                                 .fill(
                                     LinearGradient(
                                         colors: pill.title == "Suggest Your Own" ? 
@@ -987,7 +1155,7 @@ struct TopicPillsView: View {
                                     )
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 20)
+                                    RoundedRectangle(cornerRadius: 16)
                                         .stroke(
                                             LinearGradient(
                                                 colors: pill.title == "Suggest Your Own" ? 
@@ -1005,13 +1173,32 @@ struct TopicPillsView: View {
                 }
             }
         }
-        .padding(16)
+        .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.05))
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.03)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.cyan.opacity(0.3),
+                                    Color.purple.opacity(0.2)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
                 )
         )
     }
@@ -1065,8 +1252,8 @@ struct SpecificInterestsView: View {
                                 .minimumScaleFactor(0.8)
                             
                             Text("Add your specific area")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                         }
@@ -1197,7 +1384,7 @@ struct PostCreationOptionsView: View {
                                 .foregroundColor(.white)
                             
                             Text("Continue our conversation to build more personalized lessons")
-                                .font(.caption)
+                    .font(.caption)
                                 .foregroundColor(.white.opacity(0.7))
                         }
                         
@@ -1229,7 +1416,7 @@ struct PostCreationOptionsView: View {
                             Text("Return to Lesson Selection")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.white)
+                    .foregroundColor(.white)
                             
                             Text("Go back to choose lessons and finalize your course")
                                 .font(.caption)
@@ -1256,14 +1443,14 @@ struct PostCreationOptionsView: View {
             }
         }
         .padding(16)
-        .background(
+            .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.white.opacity(0.05))
-                .overlay(
+                    .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-        )
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+            )
     }
 }
 
@@ -1336,6 +1523,322 @@ struct ConversationEncouragementView: View {
                         .stroke(Color.purple.opacity(0.4), lineWidth: 1)
                 )
         )
+    }
+}
+
+struct WelcomeHeaderView: View {
+    let topic: String
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Main title
+            VStack(spacing: 8) {
+                Text("Welcome to Your")
+                    .font(.title2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white.opacity(0.9))
+                
+                Text("\(topic) Lesson Creator")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+            }
+            
+            // Subtitle
+            Text("Let's create personalized lessons together")
+                .font(.title3)
+                .fontWeight(.medium)
+                .foregroundColor(.cyan.opacity(0.9))
+                .multilineTextAlignment(.center)
+            
+            // How it works section
+            VStack(spacing: 16) {
+                HStack {
+                    Image(systemName: "sparkles")
+                        .font(.title2)
+                        .foregroundColor(.cyan)
+                    
+                    Text("How it works:")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                
+                VStack(spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("1")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.cyan)
+                            .frame(width: 20, height: 20)
+                            .background(Circle().fill(Color.cyan.opacity(0.2)))
+                        
+                        Text("Select topics that interest you below")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        Spacer()
+                    }
+                    
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("2")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.purple)
+                            .frame(width: 20, height: 20)
+                            .background(Circle().fill(Color.purple.opacity(0.2)))
+                        
+                        Text("I'll design custom lessons based on your choices")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        Spacer()
+                    }
+                    
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("3")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                            .frame(width: 20, height: 20)
+                            .background(Circle().fill(Color.green.opacity(0.2)))
+                        
+                        Text("Each lesson will be tailored to your specific interests")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 16)
+    }
+}
+
+struct TwoPathSelectionView: View {
+    let onCustomizeDetails: () -> Void
+    let onGenerateForMe: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 12) {
+                // Path 1: Customize Details
+                Button(action: onCustomizeDetails) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "pencil.and.outline")
+                            .font(.title2)
+                            .foregroundColor(.cyan)
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(Color.cyan.opacity(0.2))
+                            )
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Customize Details")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                            
+                            Text("Tell me exactly what you want to learn")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "arrow.right")
+                            .font(.title3)
+                            .foregroundColor(.cyan.opacity(0.7))
+                    }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.cyan.opacity(0.15),
+                                        Color.cyan.opacity(0.05)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.cyan.opacity(0.4), lineWidth: 1.5)
+                            )
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Path 2: Generate for Me
+                Button(action: onGenerateForMe) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "wand.and.stars")
+                            .font(.title2)
+                            .foregroundColor(.purple)
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(Color.purple.opacity(0.2))
+                            )
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Generate for Me")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                            
+                            Text("I'll create focused options for you to choose from")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "arrow.right")
+                            .font(.title3)
+                            .foregroundColor(.purple.opacity(0.7))
+                    }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.purple.opacity(0.15),
+                                        Color.purple.opacity(0.05)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.purple.opacity(0.4), lineWidth: 1.5)
+                            )
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
+
+struct InitialLoadingView: View {
+    let topic: String
+    @State private var animationPhase = 0
+    @State private var dots = ""
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Animated AI icon
+            HStack(spacing: 12) {
+                Image(systemName: "brain.head.profile")
+                    .font(.title)
+                    .foregroundColor(.cyan)
+                    .scaleEffect(animationPhase == 0 ? 1.0 : 1.2)
+                    .animation(
+                        Animation.easeInOut(duration: 1.0)
+                            .repeatForever(autoreverses: true),
+                        value: animationPhase
+                    )
+                
+                Text("AI Tutor")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+            }
+            
+            VStack(spacing: 12) {
+                Text("Setting up your **\(topic)** lesson creator\(dots)")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                
+                Text("Analyzing topic areas and generating personalized options...")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+            
+            // Loading progress bar
+            HStack {
+                ForEach(0..<3, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.cyan.opacity(animationPhase == index ? 0.8 : 0.3))
+                        .frame(width: 30, height: 4)
+                        .animation(
+                            Animation.easeInOut(duration: 0.6)
+                                .repeatForever()
+                                .delay(Double(index) * 0.2),
+                            value: animationPhase
+                        )
+                }
+            }
+        }
+        .padding(32)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.03)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.cyan.opacity(0.3),
+                                    Color.purple.opacity(0.2)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .onAppear {
+            animationPhase = 0
+            startDotAnimation()
+        }
+    }
+    
+    private func startDotAnimation() {
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            switch dots.count {
+            case 0:
+                dots = "."
+            case 1:
+                dots = ".."
+            case 2:
+                dots = "..."
+            default:
+                dots = ""
+            }
+        }
     }
 }
 
