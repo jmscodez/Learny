@@ -39,7 +39,10 @@ struct CustomizationStepView: View {
                         Spacer(minLength: 16)
                         
                         headerSection
-                        compactCourseStatsSection
+                        
+                        // NEW: Prominent AI Chat Button
+                        aiCustomLessonButton
+                        
                         selectedLessonsPreview
                         lessonGridSection
                         
@@ -76,33 +79,21 @@ struct CustomizationStepView: View {
     }
     
     private var headerSection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .font(.title2)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                
-                Text("Your Course is Ready!")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-            }
-            .scaleEffect(animationProgress)
-            .opacity(animationProgress)
+        VStack(spacing: 16) {
+            Text("Choose Your Lessons")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
             
-            Text("We've crafted **\(viewModel.suggestedLessons.count) personalized lessons** based on your preferences.")
+            Text("Select from these AI-generated lessons or create custom ones")
                 .font(.subheadline)
                 .foregroundColor(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-                .opacity(animationProgress)
+                .padding(.horizontal, 20)
         }
+        .padding(.horizontal, 20)
+        .opacity(animationProgress)
     }
     
     private var compactCourseStatsSection: some View {
@@ -130,6 +121,80 @@ struct CustomizationStepView: View {
         }
         .padding(.horizontal, 20)
         .opacity(animationProgress)
+    }
+    
+    private var aiCustomLessonButton: some View {
+        Button(action: {
+            showingAIChatModal = true
+        }) {
+            HStack(spacing: 16) {
+                // AI Icon with gradient background
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [.cyan, .blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: "sparkles")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Create Custom Lesson with AI")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Text("Chat with AI to create personalized lessons")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.cyan.opacity(0.3),
+                                Color.blue.opacity(0.2),
+                                Color.purple.opacity(0.2)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.cyan.opacity(0.6), .blue.opacity(0.4)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2
+                            )
+                    )
+            )
+            .shadow(color: .cyan.opacity(0.3), radius: 8, x: 0, y: 4)
+            .scaleEffect(animationProgress * 0.95 + 0.05)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 20)
     }
     
     private var selectedLessonsPreview: some View {
@@ -257,42 +322,16 @@ struct CustomizationStepView: View {
     private var generateCourseButtonSection: some View {
         VStack(spacing: 16) {
             if selectedCount > 0 {
-                // Generate More button (smaller, secondary)
-                HStack(spacing: 12) {
-                    Button(action: { showingGenerateOptions = true }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus.circle")
-                                .font(.subheadline)
-                            Text("Generate More")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                        }
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(Color.blue.opacity(0.1))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                )
-                        )
-                    }
+                // Course summary (centered)
+                VStack(spacing: 4) {
+                    Text("\(selectedCount) lessons selected")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
                     
-                    Spacer()
-                    
-                    // Course summary (compact)
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(selectedCount) lessons")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                        
-                        Text("\(formatTime(totalEstimatedTime))")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.6))
-                    }
+                    Text("Est. time: \(formatTime(totalEstimatedTime))")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
                 }
                 
                 // Generate Course button (primary, prominent)
@@ -488,9 +527,9 @@ struct LessonCard: View {
     let onTap: () -> Void
     let onInfo: () -> Void
     
-    // Check if this is a chat lesson by looking for the 💬 emoji
+    // Check if this is an AI-created lesson by looking for specific indicators
     private var isChatLesson: Bool {
-        lesson.title.contains("💬")
+        lesson.description.contains("AI Custom:") || lesson.title.contains("💬") || lesson.description.lowercased().contains("from ai chat")
     }
     
     var body: some View {
@@ -498,30 +537,43 @@ struct LessonCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Header with selection indicator and info button
                 HStack {
-                    // Special chat indicator for chat lessons
+                    // Enhanced AI-created lesson indicator
                     if isChatLesson {
                         HStack(spacing: 6) {
-                            Image(systemName: "message.circle.fill")
+                            Image(systemName: "sparkles")
                                 .font(.caption)
-                                .foregroundColor(.green)
-                            Text("From Chat")
+                                .foregroundColor(.cyan)
+                            Text("AI Custom")
                                 .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.green)
+                                .fontWeight(.bold)
+                                .foregroundColor(.cyan)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.2))
-                        .cornerRadius(8)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            LinearGradient(
+                                colors: [.cyan.opacity(0.3), .blue.opacity(0.2)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(.cyan.opacity(0.5), lineWidth: 1)
+                        )
                     }
                     
                     Spacer()
                     
-                    // Info button
+                    // Enhanced info button
                     Button(action: onInfo) {
-                        Image(systemName: "info.circle")
+                        Image(systemName: isChatLesson ? "sparkles.rectangle.stack" : "info.circle")
                             .font(.subheadline)
-                            .foregroundColor(.blue)
+                            .foregroundColor(isChatLesson ? .cyan : .blue)
+                            .frame(width: 28, height: 28)
+                            .background(isChatLesson ? Color.cyan.opacity(0.2) : Color.blue.opacity(0.1))
+                            .clipShape(Circle())
                     }
                     .buttonStyle(PlainButtonStyle())
                     
@@ -574,13 +626,14 @@ struct LessonCard: View {
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
-                        // Special gradient for chat lessons
+                        // Enhanced gradient for AI-created lessons
                         isChatLesson ? 
                         LinearGradient(
                             colors: [
-                                Color.green.opacity(0.3),
-                                Color.blue.opacity(0.2),
-                                Color.purple.opacity(0.2)
+                                Color.cyan.opacity(0.4),
+                                Color.blue.opacity(0.3),
+                                Color.purple.opacity(0.2),
+                                Color.cyan.opacity(0.2)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -597,17 +650,27 @@ struct LessonCard: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(
-                                // Special border for chat lessons
-                                isChatLesson ? Color.green.opacity(0.4) : Color.white.opacity(0.2),
+                                // Enhanced border for AI-created lessons
+                                isChatLesson ? 
+                                LinearGradient(
+                                    colors: [.cyan.opacity(0.8), .blue.opacity(0.6)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ) :
+                                LinearGradient(
+                                    colors: [.white.opacity(0.2), .white.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
                                 lineWidth: isChatLesson ? 2 : 1
                             )
                     )
             )
             .scaleEffect(lesson.isSelected ? 1.02 : 1.0)
             .shadow(
-                color: isChatLesson ? Color.green.opacity(0.3) : Color.black.opacity(0.2),
-                radius: lesson.isSelected ? 8 : 4,
-                y: lesson.isSelected ? 4 : 2
+                color: isChatLesson ? Color.cyan.opacity(0.4) : Color.black.opacity(0.2),
+                radius: lesson.isSelected ? 12 : (isChatLesson ? 8 : 4),
+                y: lesson.isSelected ? 6 : (isChatLesson ? 4 : 2)
             )
         }
         .buttonStyle(PlainButtonStyle())

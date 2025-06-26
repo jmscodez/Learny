@@ -357,8 +357,9 @@ final class EnhancedCourseChatViewModel: ObservableObject {
                 // Add chat lessons at the beginning with special markers
                 for (index, chatLesson) in chatLessons.enumerated() {
                     var specialLesson = chatLesson
-                    specialLesson.title = "💬 " + specialLesson.title
-                    specialLesson.description = "From AI Chat: " + specialLesson.description
+                    if !specialLesson.description.contains("AI Custom:") {
+                        specialLesson.description = "AI Custom: " + specialLesson.description
+                    }
                     specialLesson.isSelected = true // Auto-select chat lessons
                     allLessons.insert(specialLesson, at: index)
                 }
@@ -385,8 +386,9 @@ final class EnhancedCourseChatViewModel: ObservableObject {
                 // Add chat lessons to fallback
                 for (index, chatLesson) in chatLessons.enumerated() {
                     var specialLesson = chatLesson
-                    specialLesson.title = "💬 " + specialLesson.title
-                    specialLesson.description = "From AI Chat: " + specialLesson.description
+                    if !specialLesson.description.contains("AI Custom:") {
+                        specialLesson.description = "AI Custom: " + specialLesson.description
+                    }
                     specialLesson.isSelected = true
                     fallbackLessons.insert(specialLesson, at: index)
                 }
@@ -433,8 +435,8 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     /// Adds a lesson based on AI chat discussion
     func addChatLesson(title: String, description: String) {
         let chatLesson = LessonSuggestion(
-            title: "💬 " + title,
-            description: description,
+            title: title, // Remove the 💬 prefix since we'll detect it differently
+            description: "AI Custom: " + description, // Mark as AI-created in description
             isSelected: false // Don't auto-select, let user choose
         )
         
@@ -444,7 +446,7 @@ final class EnhancedCourseChatViewModel: ObservableObject {
         // Immediately add to suggested lessons so it appears in UI
         DispatchQueue.main.async {
             self.suggestedLessons.insert(chatLesson, at: 0) // Add at top
-            print("📱 [CHAT DEBUG] Added chat lesson: \(title)")
+            print("📱 [CHAT DEBUG] Added AI custom lesson: \(title)")
             print("📱 [CHAT DEBUG] Total lessons now: \(self.suggestedLessons.count)")
         }
     }

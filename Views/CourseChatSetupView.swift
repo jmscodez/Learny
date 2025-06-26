@@ -12,9 +12,8 @@ enum OnboardingStep: Int, CaseIterable {
     case topicSelection = 1
     case timeCommitment = 2
     case lessonCount = 3
-    case chatCustomization = 4
-    case generating = 5
-    case customization = 6
+    case generating = 4
+    case customization = 5
 }
 
 struct LearningGoal: Identifiable {
@@ -129,21 +128,7 @@ extension CourseChatSetupView {
             LessonCountStepView(
                 selectedLessonCount: $viewModel.desiredLessonCount,
                 timeCommitment: viewModel.preferredLessonTime,
-                onContinue: { nextStep() }
-            )
-        case .chatCustomization:
-            ChatCustomizationStepView(
-                course: .constant(Course(
-                    id: UUID(),
-                    title: viewModel.topic,
-                    topic: viewModel.topic,
-                    difficulty: viewModel.difficulty,
-                    pace: viewModel.pace,
-                    creationMethod: .aiAssistant,
-                    lessons: [],
-                    createdAt: Date()
-                )),
-                onFinalize: { generateCourse() }
+                onContinue: { generateCourse() }
             )
         case .generating:
             GeneratingStepView(
@@ -158,7 +143,7 @@ extension CourseChatSetupView {
                 },
                 onCancel: {
                     withAnimation(.spring()) {
-                        currentStep = .chatCustomization
+                        currentStep = .lessonCount
                     }
                 }
             )
@@ -207,7 +192,14 @@ extension CourseChatSetupView {
         VStack(spacing: 16) {
             // Navigation and Title
             HStack {
-                Button(action: { isPresented = false }) {
+                Button(action: { 
+                    // Reset all states and dismiss immediately
+                    Task { @MainActor in
+                        viewModel.generationProgress = 0.0
+                        currentStep = .experience
+                        isPresented = false
+                    }
+                }) {
                     Image(systemName: "xmark")
                         .font(.title2)
                         .foregroundColor(.white)

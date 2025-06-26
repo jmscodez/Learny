@@ -47,11 +47,12 @@ struct GeneratingStepView: View {
             VStack(spacing: 32) {
                 Spacer()
                 
-                // Main progress section - simplified
-                progressSection
-                
-                // Title and description
-                titleSection
+                // Main progress section - fixed position
+                VStack(spacing: 24) {
+                    progressSection
+                    titleSection
+                }
+                .frame(maxHeight: .infinity, alignment: .center)
                 
                 // Current lesson being generated
                 if !currentLessonBeingGenerated.isEmpty {
@@ -119,7 +120,7 @@ struct GeneratingStepView: View {
     
     private var titleSection: some View {
         VStack(spacing: 12) {
-            Text("Creating Your Personalized Course")
+            Text("Generating Custom Lessons")
                 .font(.title)
                 .fontWeight(.bold)
                 .foregroundStyle(

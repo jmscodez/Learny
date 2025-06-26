@@ -27,8 +27,7 @@ struct LessonCountStepView: View {
     }
     
     private var recommendedCount: Int {
-        let mid = (lessonRange.lowerBound + lessonRange.upperBound) / 2
-        return mid
+        return 7  // Always recommend 7 lessons
     }
     
     var body: some View {
@@ -50,12 +49,28 @@ struct LessonCountStepView: View {
                         .multilineTextAlignment(.center)
                         .opacity(animationProgress)
                     
-                    Text("💡 Don't worry - you can always generate more lessons later!")
-                        .font(.caption)
-                        .foregroundColor(.blue.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
-                        .opacity(animationProgress)
+                    HStack(spacing: 8) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.caption)
+                            .foregroundColor(.yellow)
+                        
+                        Text("Don't worry - you can always generate more lessons later!")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.2))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.blue.opacity(0.4), lineWidth: 1)
+                            )
+                    )
+                    .padding(.top, 8)
+                    .opacity(animationProgress)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -194,9 +209,9 @@ struct LessonCountStepView: View {
             }
         }
         .onAppear {
-            // Set initial value to recommended
+            // Always set initial value to 7
             if selectedLessonCount == 0 {
-                selectedLessonCount = recommendedCount
+                selectedLessonCount = 7
             }
             
             withAnimation(.easeOut(duration: 0.8)) {
