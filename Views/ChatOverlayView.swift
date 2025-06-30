@@ -1027,7 +1027,7 @@ struct FinalLessonOptionsView: View {
             }
         }
         .padding(16)
-        .background(
+                        .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.purple.opacity(0.2))
                 .overlay(
@@ -1268,7 +1268,7 @@ struct SpecificInterestsView: View {
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color.yellow.opacity(0.15))
-                            .overlay(
+                    .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.yellow.opacity(0.4), lineWidth: 1)
                             )
@@ -1339,8 +1339,8 @@ struct SpecificInterestRow: View {
                         .multilineTextAlignment(.leading)
                     
                     Text(interest.description)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.leading)
                 }
                 
@@ -1568,7 +1568,7 @@ struct WelcomeHeaderView: View {
                 }
                 
                 VStack(spacing: 12) {
-                    HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
                         Text("1")
                             .font(.caption)
                             .fontWeight(.bold)
@@ -1635,7 +1635,7 @@ struct TwoPathSelectionView: View {
                             .foregroundColor(.cyan)
                             .frame(width: 40, height: 40)
                             .background(
-                                Circle()
+                Circle()
                                     .fill(Color.cyan.opacity(0.2))
                             )
                         
@@ -1659,16 +1659,16 @@ struct TwoPathSelectionView: View {
                     .padding(20)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(
-                                LinearGradient(
+                    .fill(
+                        LinearGradient(
                                     colors: [
                                         Color.cyan.opacity(0.15),
                                         Color.cyan.opacity(0.05)
                                     ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
                                     .stroke(Color.cyan.opacity(0.4), lineWidth: 1.5)
@@ -1693,7 +1693,7 @@ struct TwoPathSelectionView: View {
                             Text("Generate for Me")
                                 .font(.headline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.white)
+                    .foregroundColor(.white)
                             
                             Text("I'll create focused options for you to choose from")
                                 .font(.subheadline)
@@ -1744,86 +1744,246 @@ struct InitialLoadingView: View {
     let topic: String
     @State private var animationPhase = 0
     @State private var dots = ""
+    @State private var pulseAnimation = false
+    @State private var particles: [LoadingParticle] = []
+    @State private var shimmerPhase: CGFloat = 0
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Animated AI icon
-            HStack(spacing: 12) {
-                Image(systemName: "brain.head.profile")
-                    .font(.title)
-                    .foregroundColor(.cyan)
-                    .scaleEffect(animationPhase == 0 ? 1.0 : 1.2)
-                    .animation(
-                        Animation.easeInOut(duration: 1.0)
-                            .repeatForever(autoreverses: true),
-                        value: animationPhase
-                    )
-                
-                Text("AI Tutor")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
+        ZStack {
+            // Enhanced blue background matching the app theme
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: Color(red: 0.02, green: 0.05, blue: 0.3), location: 0),
+                    .init(color: Color(red: 0.05, green: 0.15, blue: 0.45), location: 0.3),
+                    .init(color: Color(red: 0.1, green: 0.25, blue: 0.6), location: 0.7),
+                    .init(color: Color(red: 0.15, green: 0.35, blue: 0.75), location: 1)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            // Floating particles for visual appeal
+            ForEach(particles.indices, id: \.self) { index in
+                let particle = particles[index]
+                Circle()
+                    .fill(particle.color)
+                    .frame(width: particle.size, height: particle.size)
+                    .position(particle.position)
+                    .opacity(particle.opacity)
+                    .scaleEffect(particle.scale)
+                    .blur(radius: 1)
             }
             
-            VStack(spacing: 12) {
-                Text("Setting up your **\(topic)** lesson creator\(dots)")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.9))
-                    .multilineTextAlignment(.center)
+            VStack(spacing: 32) {
+                // Enhanced title section with sparkles
+                VStack(spacing: 16) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .font(.title2)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.yellow.opacity(0.9), .cyan.opacity(0.8)]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .scaleEffect(pulseAnimation ? 1.3 : 1.0)
+                            .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulseAnimation)
+                        
+                        Text("AI Tutor")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.white, .cyan, .blue]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    }
+                    
+                    // Enhanced brain icon with glow
+                    ZStack {
+                        // Outer glow rings
+                        ForEach(0..<2, id: \.self) { index in
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            .cyan.opacity(0.3 - Double(index) * 0.1),
+                                            .blue.opacity(0.2 - Double(index) * 0.05)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 3 - CGFloat(index)
+                                )
+                                .frame(width: 100 + CGFloat(index * 20))
+                                .scaleEffect(pulseAnimation ? 1.1 : 1.0)
+                                .animation(
+                                    .easeInOut(duration: 2.0 + Double(index) * 0.5)
+                                    .repeatForever(autoreverses: true),
+                                    value: pulseAnimation
+                                )
+                        }
+                        
+                        // Main brain icon
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 48))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.cyan, .blue]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .scaleEffect(pulseAnimation ? 1.1 : 1.0)
+                            .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: pulseAnimation)
+                            .shadow(color: .cyan.opacity(0.6), radius: 8, x: 0, y: 4)
+                    }
+                }
                 
-                Text("Analyzing topic areas and generating personalized options...")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-            }
-            
-            // Loading progress bar
-            HStack {
-                ForEach(0..<3, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.cyan.opacity(animationPhase == index ? 0.8 : 0.3))
-                        .frame(width: 30, height: 4)
-                        .animation(
-                            Animation.easeInOut(duration: 0.6)
-                                .repeatForever()
-                                .delay(Double(index) * 0.2),
-                            value: animationPhase
+                // Status text with enhanced styling
+                VStack(spacing: 16) {
+                    // Topic badge
+                    Text(topic)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            .blue.opacity(0.4),
+                                            .cyan.opacity(0.3)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [.cyan.opacity(0.6), .blue.opacity(0.4)]),
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                )
                         )
+                        .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                    
+                    VStack(spacing: 8) {
+                        Text("Setting up your lesson creator\(dots)")
+                            .font(.title3)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white.opacity(0.95))
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Analyzing topic areas and generating personalized options...")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.75))
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                
+                // Enhanced progress indicator with blue theme
+                VStack(spacing: 16) {
+                    HStack(spacing: 8) {
+                        ForEach(0..<5, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            animationPhase == index ? .cyan : .white.opacity(0.2),
+                                            animationPhase == index ? .blue : .white.opacity(0.1)
+                                        ]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: 40, height: 6)
+                                .scaleEffect(animationPhase == index ? 1.1 : 1.0)
+                                .shadow(
+                                    color: animationPhase == index ? .cyan.opacity(0.6) : .clear,
+                                    radius: 4,
+                                    x: 0,
+                                    y: 2
+                                )
+                                .animation(
+                                    Animation.easeInOut(duration: 0.8)
+                                        .repeatForever()
+                                        .delay(Double(index) * 0.15),
+                                    value: animationPhase
+                                )
+                        }
+                    }
+                    
+                    Text("Preparing your AI tutor...")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white.opacity(0.6))
+                        .tracking(1.2)
+                        .textCase(.uppercase)
+                }
+            }
+            .padding(.horizontal, 32)
+        }
+        .onAppear {
+            setupParticleSystem()
+            startAnimations()
+        }
+    }
+    
+    private func setupParticleSystem() {
+        particles = (0..<15).map { i in
+            let particleColors: [Color] = [
+                .cyan.opacity(0.3),
+                .blue.opacity(0.25),
+                .white.opacity(0.15),
+                Color(red: 0.5, green: 0.8, blue: 1.0).opacity(0.2)
+            ]
+            
+            return LoadingParticle(
+                id: i,
+                position: CGPoint(
+                    x: CGFloat.random(in: 30...350),
+                    y: CGFloat.random(in: 100...700)
+                ),
+                color: particleColors.randomElement() ?? .cyan.opacity(0.3),
+                size: CGFloat.random(in: 3...8),
+                opacity: Double.random(in: 0.3...0.6),
+                scale: Double.random(in: 0.8...1.2),
+                duration: Double.random(in: 3.0...6.0),
+                delay: Double.random(in: 0...3.0)
+            )
+        }
+        startParticleAnimation()
+    }
+    
+    private func startParticleAnimation() {
+        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            for i in particles.indices {
+                withAnimation(.linear(duration: particles[i].duration)) {
+                    particles[i].position.x += CGFloat.random(in: -1...1)
+                    particles[i].position.y += CGFloat.random(in: -1...1)
+                    particles[i].scale = Double.random(in: 0.8...1.2)
                 }
             }
         }
-        .padding(32)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.08),
-                            Color.white.opacity(0.03)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.cyan.opacity(0.3),
-                                    Color.purple.opacity(0.2)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-        )
-        .onAppear {
-            animationPhase = 0
-            startDotAnimation()
-        }
+    }
+    
+    private func startAnimations() {
+        pulseAnimation = true
+        animationPhase = 0
+        startDotAnimation()
+        startProgressAnimation()
     }
     
     private func startDotAnimation() {
@@ -1837,6 +1997,14 @@ struct InitialLoadingView: View {
                 dots = "..."
             default:
                 dots = ""
+            }
+        }
+    }
+    
+    private func startProgressAnimation() {
+        Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 0.8)) {
+                animationPhase = (animationPhase + 1) % 5
             }
         }
     }

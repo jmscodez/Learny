@@ -5,6 +5,14 @@ import SwiftUI
 
 typealias LessonOverview = String
 
+struct CourseContext {
+    let topic: String
+    let difficulty: Difficulty
+    let experience: String
+    let timeCommitment: Int
+    let selectedTopics: [String]
+}
+
 struct AIRequest: Codable {
     let model: String
     let messages: [AIMessage]
@@ -259,11 +267,11 @@ final class OpenAIService {
             let payload = try JSONDecoder().decode(InterestPayload.self, from: nestedData)
             print("🤖 [AI DEBUG] Successfully decoded \(payload.interests.count) interests")
             
-            // Convert to InterestArea objects
+            // Convert to InterestArea objects with valid SF Symbols
             let interestAreas = payload.interests.map { aiInterest in
                 InterestArea(
                     title: aiInterest.title,
-                    icon: aiInterest.icon,
+                    icon: getValidSFSymbol(aiInterest.icon),
                     color: colorFromString(aiInterest.color),
                     isSelected: false
                 )
@@ -305,17 +313,23 @@ final class OpenAIService {
         - Difficulty: \(difficulty.rawValue.uppercased()) - \(difficultyGuide)
         - Pace: \(pace.rawValue.uppercased()) - \(paceGuide)
         
-        **PERSONALIZATION REQUIREMENTS:**
-        1. Tailor lessons to match their stated interests and goals
-        2. Consider their experience level when setting depth and complexity
-        3. Design each lesson to fit within \(timeCommitment) minutes
-        4. Create a progressive learning path that builds knowledge systematically
-        5. Include practical, applicable content that aligns with their goals
+        **CRITICAL PERSONALIZATION REQUIREMENTS:**
+        \(interests.isEmpty ? "1. Create a comprehensive overview of the topic" : """
+        1. PRIORITIZE their specific interests: \(interests.joined(separator: ", ")). At least 60% of lessons should directly relate to these chosen areas.
+        2. Create lessons that dive deep into each selected interest area with specific, actionable content.
+        """)
+        3. Consider their experience level when setting depth and complexity
+        4. Design each lesson to fit within \(timeCommitment) minutes
+        5. Create a progressive learning path that builds knowledge systematically
+        6. Include practical, applicable content that aligns with their goals
         
-        Generate 8-10 diverse, personalized lesson ideas that create a comprehensive learning journey. Each lesson should feel custom-made for this specific learner.
+        \(interests.isEmpty ? "Generate 8-10 diverse lesson ideas covering the breadth of \(topic)." : """
+        Generate 8-10 personalized lesson ideas where MOST lessons focus on their selected interests: \(interests.joined(separator: ", ")). 
+        Make sure each interest area gets dedicated coverage with specific, detailed lessons.
+        """)
         
         Your response MUST be a valid JSON object with a single key 'lessons' that contains an array of objects. Each object should have:
-        - 'title': Engaging lesson title
+        - 'title': Engaging lesson title that clearly relates to their interests when possible
         - 'description': Clear description explaining what they'll learn and why it matters to their goals
         
         Do not include any other text, just the raw JSON.
@@ -821,6 +835,28 @@ final class OpenAIService {
         case "black": return .black
         case "white": return .white
         default: return .blue // Default fallback
+        }
+    }
+    
+    /// Helper function to ensure valid SF Symbol names
+    private func getValidSFSymbol(_ iconString: String) -> String {
+        // Map common AI-generated icon names to valid SF Symbols
+        switch iconString.lowercased() {
+        case "bitcoin": return "bitcoinsign.circle.fill"
+        case "warning": return "exclamationmark.triangle.fill"
+        case "chart.bar.xaxis.line": return "chart.bar.fill"
+        case "briefcase": return "briefcase.fill"
+        case "doc": return "doc.fill"
+        case "creditcard": return "creditcard.fill"
+        case "arrow.up.and.down": return "arrow.up.arrow.down"
+        default: 
+            // Return the original if it's likely a valid SF Symbol
+            if iconString.contains(".") || iconString.contains("fill") {
+                return iconString
+            } else {
+                // Add .fill to simple names for better appearance
+                return iconString + ".fill"
+            }
         }
     }
 } 

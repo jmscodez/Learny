@@ -293,6 +293,7 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     // User preferences from onboarding
     @Published var userExperience: String = ""
     @Published var selectedTopics: [String] = []
+    @Published var customInterestDetails: String = ""
     @Published var preferredLessonTime: Int = 15
     @Published var studyFrequency: String = ""
     @Published var desiredLessonCount: Int = 6
@@ -313,93 +314,159 @@ final class EnhancedCourseChatViewModel: ObservableObject {
     
     private let aiService = OpenAIService.shared
     
+    // Cancellation support
+    private var progressTimer: Timer?
+    private var generationTask: Task<Void, Error>?
+    
     init(topic: String, difficulty: Difficulty, pace: Pace) {
         self.topic = topic
         self.difficulty = difficulty
         self.pace = pace
     }
     
+    deinit {
+        // Clean up resources when ViewModel is deallocated
+        progressTimer?.invalidate()
+        generationTask?.cancel()
+        print("📱 [LIFECYCLE] EnhancedCourseChatViewModel deallocated")
+    }
+    
     /// Generates personalized course based on all user preferences
     func generatePersonalizedCourse() async {
+        // Cancel any existing generation
+        cancelGeneration()
+        
         isGenerating = true
         generationProgress = 0.0
         
         // Simulate progress updates
-        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
             Task { @MainActor in
                 if self.generationProgress < 0.9 {
                     self.generationProgress += 0.1
                 } else {
                     timer.invalidate()
+                    self.progressTimer = nil
                 }
             }
         }
         
-        // Generate lessons using AI service
-        let lessons = await aiService.generatePersonalizedLessonIdeas(
-            for: topic,
-            difficulty: difficulty,
-            pace: pace,
-            experience: userExperience,
-            interests: selectedTopics,
-            goals: [], // Could be added as another onboarding step
-            timeCommitment: preferredLessonTime
-        )
-        
-        await MainActor.run {
-            progressTimer.invalidate()
-            generationProgress = 1.0
-            
-            if let lessons = lessons {
-                // Start with AI-generated lessons
-                var allLessons = lessons
-                
-                // Add chat lessons at the beginning with special markers
-                for (index, chatLesson) in chatLessons.enumerated() {
-                    var specialLesson = chatLesson
-                    if !specialLesson.description.contains("AI Custom:") {
-                        specialLesson.description = "AI Custom: " + specialLesson.description
-                    }
-                    specialLesson.isSelected = true // Auto-select chat lessons
-                    allLessons.insert(specialLesson, at: index)
-                }
-                
-                suggestedLessons = allLessons
-                
-                // Auto-select appropriate lessons
-                let chatCount = chatLessons.count
-                let totalToSelect = min(desiredLessonCount + chatCount, allLessons.count)
-                
-                for i in 0..<totalToSelect {
-                    if i < suggestedLessons.count {
-                        suggestedLessons[i].isSelected = true
-                    }
-                }
-                
-                print("📱 [COURSE DEBUG] Generated course with \(suggestedLessons.count) total lessons")
-                print("📱 [COURSE DEBUG] Chat lessons count: \(chatCount)")
-                print("📱 [COURSE DEBUG] Selected lessons count: \(selectedLessons.count)")
-            } else {
-                // Fallback lessons with chat lessons included
-                var fallbackLessons = createFallbackLessons()
-                
-                // Add chat lessons to fallback
-                for (index, chatLesson) in chatLessons.enumerated() {
-                    var specialLesson = chatLesson
-                    if !specialLesson.description.contains("AI Custom:") {
-                        specialLesson.description = "AI Custom: " + specialLesson.description
-                    }
-                    specialLesson.isSelected = true
-                    fallbackLessons.insert(specialLesson, at: index)
-                }
-                
-                suggestedLessons = fallbackLessons
-                
-                print("📱 [COURSE DEBUG] Using fallback lessons with \(chatLessons.count) chat lessons")
+        // Generate lessons using AI service in a cancellable task
+        generationTask = Task {
+            // Combine selected interests with custom details
+            var allInterests = selectedTopics
+            if !customInterestDetails.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                allInterests.append("Custom details: " + customInterestDetails)
             }
             
-            isGenerating = false
+            let lessons = await aiService.generatePersonalizedLessonIdeas(
+                for: topic,
+                difficulty: difficulty,
+                pace: pace,
+                experience: userExperience,
+                interests: allInterests,
+                goals: [], // Could be added as another onboarding step
+                timeCommitment: preferredLessonTime
+            )
+            
+            // Check if task was cancelled
+            try Task.checkCancellation()
+            
+            await MainActor.run {
+                progressTimer?.invalidate()
+                progressTimer = nil
+                generationProgress = 1.0
+                
+                if let lessons = lessons {
+                    // Start with AI-generated lessons
+                    var allLessons = lessons
+                    
+                    // Add chat lessons at the beginning with special markers
+                    for (index, chatLesson) in chatLessons.enumerated() {
+                        var specialLesson = chatLesson
+                        if !specialLesson.description.contains("AI Custom:") {
+                            specialLesson.description = "AI Custom: " + specialLesson.description
+                        }
+                        specialLesson.isSelected = true // Auto-select chat lessons
+                        allLessons.insert(specialLesson, at: index)
+                    }
+                    
+                    suggestedLessons = allLessons
+                    
+                    // Auto-select appropriate lessons
+                    let chatCount = chatLessons.count
+                    let totalToSelect = min(desiredLessonCount + chatCount, allLessons.count)
+                    
+                    for i in 0..<totalToSelect {
+                        if i < suggestedLessons.count {
+                            suggestedLessons[i].isSelected = true
+                        }
+                    }
+                    
+                    print("📱 [COURSE DEBUG] Generated course with \(suggestedLessons.count) total lessons")
+                    print("📱 [COURSE DEBUG] Chat lessons count: \(chatCount)")
+                    print("📱 [COURSE DEBUG] Selected lessons count: \(selectedLessons.count)")
+                } else {
+                    // Fallback lessons with chat lessons included
+                    var fallbackLessons = createFallbackLessons()
+                    
+                    // Add chat lessons to fallback
+                    for (index, chatLesson) in chatLessons.enumerated() {
+                        var specialLesson = chatLesson
+                        if !specialLesson.description.contains("AI Custom:") {
+                            specialLesson.description = "AI Custom: " + specialLesson.description
+                        }
+                        specialLesson.isSelected = true
+                        fallbackLessons.insert(specialLesson, at: index)
+                    }
+                    
+                    suggestedLessons = fallbackLessons
+                    
+                    print("📱 [COURSE DEBUG] Using fallback lessons with \(chatLessons.count) chat lessons")
+                }
+                
+                isGenerating = false
+                generationTask = nil
+            }
         }
+        
+        // Wait for the generation task to complete or be cancelled
+        do {
+            try await generationTask?.value
+        } catch is CancellationError {
+            // Task was cancelled, clean up
+            await MainActor.run {
+                progressTimer?.invalidate()
+                progressTimer = nil
+                isGenerating = false
+                generationTask = nil
+            }
+        } catch {
+            // Handle other errors
+            await MainActor.run {
+                progressTimer?.invalidate()
+                progressTimer = nil
+                isGenerating = false
+                generationTask = nil
+            }
+        }
+    }
+    
+    /// Cancels the ongoing course generation
+    func cancelGeneration() {
+        // Cancel the generation task
+        generationTask?.cancel()
+        generationTask = nil
+        
+        // Stop the progress timer
+        progressTimer?.invalidate()
+        progressTimer = nil
+        
+        // Reset generation state
+        isGenerating = false
+        generationProgress = 0.0
+        
+        print("📱 [GENERATION] Course generation cancelled")
     }
     
     /// Generates additional lessons for the "Generate More" feature

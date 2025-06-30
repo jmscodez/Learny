@@ -31,15 +31,19 @@ struct LessonCountStepView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Header - Fixed height
-                VStack(spacing: 12) {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Top spacing for safe area
+                Spacer(minLength: 20)
+                
+                // Header section - improved layout
+                VStack(spacing: 16) {
                     Text("How many lessons would you like?")
-                        .font(.title)
+                        .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
+                        .lineLimit(2)
                         .scaleEffect(animationProgress)
                         .opacity(animationProgress)
                     
@@ -47,46 +51,47 @@ struct LessonCountStepView: View {
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
+                        .lineLimit(3)
                         .opacity(animationProgress)
                     
-                    HStack(spacing: 8) {
+                    // Enhanced info message
+                    HStack(spacing: 10) {
                         Image(systemName: "lightbulb.fill")
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundColor(.yellow)
                         
                         Text("Don't worry - you can always generate more lessons later!")
-                            .font(.caption)
+                            .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.white)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: 12)
                             .fill(Color.blue.opacity(0.2))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.blue.opacity(0.4), lineWidth: 1)
                             )
                     )
-                    .padding(.top, 8)
                     .opacity(animationProgress)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .frame(height: geometry.size.height * 0.25)
                 
-                // Lesson count selection - Flexible space
-                VStack(spacing: 32) {
-                    // Visual lesson count display
-                    VStack(spacing: 16) {
+                // Lesson count selection
+                VStack(spacing: 28) {
+                    // Visual lesson count display - smaller to save space
+                    VStack(spacing: 12) {
                         Text("\(selectedLessonCount)")
-                            .font(.system(size: 72, weight: .bold))
+                            .font(.system(size: 60, weight: .bold))
                             .foregroundColor(.blue)
                             .scaleEffect(animationProgress)
                         
                         Text("lessons")
-                            .font(.title2)
+                            .font(.title3)
                             .foregroundColor(.white.opacity(0.8))
                             .opacity(animationProgress)
                     }
@@ -144,43 +149,44 @@ struct LessonCountStepView: View {
                     }
                     .padding(.horizontal, 40)
                     
-                    // Quick selection buttons
+                    // Quick selection buttons - uniform sizing
                     HStack(spacing: 12) {
-                        ForEach([lessonRange.lowerBound, recommendedCount, lessonRange.upperBound], id: \.self) { count in
+                        ForEach([3, 7, 12], id: \.self) { count in
                             Button(action: { 
                                 withAnimation(.spring()) {
                                     selectedLessonCount = count
                                 }
                             }) {
-                                VStack(spacing: 4) {
+                                VStack(spacing: 6) {
                                     Text("\(count)")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
+                                        .font(.title2)
+                                        .fontWeight(.bold)
                                     
                                     Text(getLabelFor(count: count))
-                                        .font(.caption2)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
                                 }
                                 .foregroundColor(selectedLessonCount == count ? .white : .white.opacity(0.6))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 70)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 12)
+                                    RoundedRectangle(cornerRadius: 16)
                                         .fill(selectedLessonCount == count ? Color.blue.opacity(0.3) : Color.white.opacity(0.1))
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(selectedLessonCount == count ? .blue : .white.opacity(0.2), lineWidth: 1)
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(selectedLessonCount == count ? .blue : .white.opacity(0.2), lineWidth: selectedLessonCount == count ? 2 : 1)
                                         )
                                 )
                             }
-                            .scaleEffect(selectedLessonCount == count ? 1.05 : 1.0)
+                            .scaleEffect(selectedLessonCount == count ? 1.02 : 1.0)
                             .animation(.spring(), value: selectedLessonCount)
                         }
                     }
+                    .padding(.horizontal, 20)
                     .opacity(animationProgress)
                 }
-                .frame(maxHeight: .infinity)
                 
-                // Continue button - Fixed at bottom
+                // Continue button
                 Button(action: onContinue) {
                     HStack {
                         Text("Continue")
@@ -205,14 +211,14 @@ struct LessonCountStepView: View {
                 }
                 .scaleEffect(animationProgress)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                
+                // Bottom spacing
+                Spacer(minLength: 20)
             }
         }
         .onAppear {
             // Always set initial value to 7
-            if selectedLessonCount == 0 {
-                selectedLessonCount = 7
-            }
+            selectedLessonCount = 7
             
             withAnimation(.easeOut(duration: 0.8)) {
                 animationProgress = 1.0
@@ -221,12 +227,15 @@ struct LessonCountStepView: View {
     }
     
     private func getLabelFor(count: Int) -> String {
-        if count == lessonRange.lowerBound {
+        switch count {
+        case 3:
             return "Quick"
-        } else if count == recommendedCount {
+        case 7:
             return "Recommended"
-        } else {
+        case 12:
             return "Comprehensive"
+        default:
+            return "Custom"
         }
     }
 }

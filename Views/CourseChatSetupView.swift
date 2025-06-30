@@ -9,7 +9,7 @@ import SwiftUI
 
 enum OnboardingStep: Int, CaseIterable {
     case experience = 0
-    case topicSelection = 1
+    case interests = 1
     case timeCommitment = 2
     case lessonCount = 3
     case generating = 4
@@ -43,8 +43,12 @@ struct CourseChatSetupView: View {
     @State private var showingChat = false
     @State private var suggestionForDetail: LessonSuggestion?
     @State private var animationProgress: Double = 0
+    @State private var selectedInterests: [InterestArea] = []
+    @State private var customInterestDetails: String = ""
+    @State private var isDismissing = false
     
     @Binding var isPresented: Bool
+    @EnvironmentObject private var generationManager: CourseGenerationManager
     
     init(topic: String, difficulty: Difficulty, pace: Pace, isPresented: Binding<Bool>) {
         _viewModel = StateObject(wrappedValue: EnhancedCourseChatViewModel(topic: topic, difficulty: difficulty, pace: pace))
@@ -61,17 +65,30 @@ struct CourseChatSetupView: View {
                 enhancedHeaderView
                 
                 // Main Content Area
-                TabView(selection: $currentStep) {
-                    ForEach(OnboardingStep.allCases, id: \.rawValue) { step in
-                        stepContentView(for: step)
-                            .tag(step)
+                if !isDismissing {
+                    TabView(selection: $currentStep) {
+                        ForEach(OnboardingStep.allCases, id: \.rawValue) { step in
+                            stepContentView(for: step)
+                                .tag(step)
+                        }
                     }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    .animation(.easeInOut(duration: 0.5), value: currentStep)
+                } else {
+                    // Show empty view while dismissing
+                    Color.clear
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.5), value: currentStep)
+            }
+        }
+        .onChange(of: isPresented) {
+            // This handles cases where the sheet is dismissed by dragging down
+            if !isPresented && !isDismissing {
+                performDismissal()
             }
         }
         .onAppear {
+            // Reset dismissing state when view appears
+            isDismissing = false
             withAnimation(.easeInOut(duration: 2.0)) {
                 animationProgress = 1.0
             }
@@ -97,6 +114,30 @@ struct CourseChatSetupView: View {
                 LessonChatView(lesson: suggestion)
             }
         }
+        .onDisappear {
+            // This is a final safeguard. If the view disappeared for a reason
+            // other than our explicit dismissal flow (e.g., parent view changed),
+            // this ensures the generation is cancelled.
+            if !isDismissing {
+                viewModel.cancelGeneration()
+            }
+        }
+    }
+    
+    private func performDismissal() {
+        // Ensure dismissal logic only runs once
+        guard !isDismissing else { return }
+        isDismissing = true
+        
+        // 1. Dismiss the keyboard to prevent constraint errors
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        
+        // 2. Cancel both generation systems
+        viewModel.cancelGeneration()
+        generationManager.cancelGeneration()
+        
+        // 3. Dismiss the sheet
+        isPresented = false
     }
 }
 
@@ -112,11 +153,17 @@ extension CourseChatSetupView {
                 selectedExperience: $viewModel.userExperience,
                 onContinue: { nextStep() }
             )
-        case .topicSelection:
-            TopicSelectionStepView(
+        case .interests:
+            InterestsStepView(
                 topic: viewModel.topic,
-                selectedTopics: $viewModel.selectedTopics,
-                onContinue: { nextStep() }
+                selectedInterests: $selectedInterests,
+                customDetails: $customInterestDetails,
+                onContinue: { 
+                    // Pass selected interests and custom details to viewModel
+                    viewModel.selectedTopics = selectedInterests.filter(\.isSelected).map(\.title)
+                    viewModel.customInterestDetails = customInterestDetails
+                    nextStep() 
+                }
             )
         case .timeCommitment:
                             TimeCommitmentStepView(
@@ -136,12 +183,15 @@ extension CourseChatSetupView {
                 selectedLessons: viewModel.selectedLessons,
                 progress: $viewModel.generationProgress,
                 isVisible: .constant(true),
+                isFrozen: isDismissing,
                 onComplete: {
                     withAnimation(.spring()) {
                         currentStep = .customization
                     }
                 },
                 onCancel: {
+                    // Cancel generation and go back to lesson count step
+                    viewModel.cancelGeneration()
                     withAnimation(.spring()) {
                         currentStep = .lessonCount
                     }
@@ -176,10 +226,20 @@ extension CourseChatSetupView {
         Task {
             await viewModel.generatePersonalizedCourse()
             
+            // Only transition to customization if generation completed successfully
             await MainActor.run {
-                withAnimation(.spring()) {
-                    currentStep = .customization
+                // Check if we're still in generating step and generation completed successfully
+                // (not cancelled and has generated lessons)
+                if currentStep == .generating && 
+                   !viewModel.isGenerating && 
+                   viewModel.generationProgress >= 1.0 &&
+                   !viewModel.suggestedLessons.isEmpty {
+                    withAnimation(.spring()) {
+                        currentStep = .customization
+                    }
                 }
+                // If we're not in generating step anymore, it means user cancelled
+                // so we don't transition to customization
             }
         }
     }
@@ -192,13 +252,8 @@ extension CourseChatSetupView {
         VStack(spacing: 16) {
             // Navigation and Title
             HStack {
-                Button(action: { 
-                    // Reset all states and dismiss immediately
-                    Task { @MainActor in
-                        viewModel.generationProgress = 0.0
-                        currentStep = .experience
-                        isPresented = false
-                    }
+                Button(action: {
+                    performDismissal()
                 }) {
                     Image(systemName: "xmark")
                         .font(.title2)
@@ -274,7 +329,7 @@ struct AnimatedBackgroundView: View {
     let progress: Double
     
     var body: some View {
-        // Finance-themed animated background
+        // Simple gradient background without animations to prevent NaN errors
         LinearGradient(
             colors: [
                 Color(red: 0.02, green: 0.05, blue: 0.2),
@@ -284,20 +339,6 @@ struct AnimatedBackgroundView: View {
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
-        )
-        .overlay(
-            // Subtle animated elements
-            ForEach(0..<20, id: \.self) { index in
-                Circle()
-                    .fill(Color.white.opacity(0.05))
-                    .frame(width: Double.random(in: 20...60))
-                    .position(
-                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-                    )
-                    .opacity(progress)
-                    .animation(.easeInOut(duration: Double.random(in: 2...4)).repeatForever(autoreverses: true), value: progress)
-            }
         )
         .ignoresSafeArea()
     }
