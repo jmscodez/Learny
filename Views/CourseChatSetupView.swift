@@ -69,8 +69,10 @@ struct CourseChatSetupView: View {
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.5), value: currentStep)
+                .background(Color.black)
             }
         }
+        .background(Color.black)
         .onAppear {
             withAnimation(.easeInOut(duration: 2.0)) {
                 animationProgress = 1.0
@@ -274,32 +276,38 @@ struct AnimatedBackgroundView: View {
     let progress: Double
     
     var body: some View {
-        // Finance-themed animated background
-        LinearGradient(
-            colors: [
-                Color(red: 0.02, green: 0.05, blue: 0.2),
-                Color(red: 0.05, green: 0.1, blue: 0.3),
-                Color(red: 0.08, green: 0.15, blue: 0.4),
-                Color(red: 0.1, green: 0.2, blue: 0.5)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay(
-            // Subtle animated elements
-            ForEach(0..<20, id: \.self) { index in
-                Circle()
-                    .fill(Color.white.opacity(0.05))
-                    .frame(width: Double.random(in: 20...60))
-                    .position(
-                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-                    )
-                    .opacity(progress)
-                    .animation(.easeInOut(duration: Double.random(in: 2...4)).repeatForever(autoreverses: true), value: progress)
-            }
-        )
-        .ignoresSafeArea()
+        ZStack {
+            // Solid background to prevent bleed-through
+            Color.black
+                .ignoresSafeArea()
+            
+            // Finance-themed animated background
+            LinearGradient(
+                colors: [
+                    Color(red: 0.02, green: 0.05, blue: 0.2),
+                    Color(red: 0.05, green: 0.1, blue: 0.3),
+                    Color(red: 0.08, green: 0.15, blue: 0.4),
+                    Color(red: 0.1, green: 0.2, blue: 0.5)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .overlay(
+                // Subtle animated elements
+                ForEach(0..<20, id: \.self) { index in
+                    Circle()
+                        .fill(Color.white.opacity(0.05))
+                        .frame(width: Double.random(in: 20...60))
+                        .position(
+                            x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
+                            y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
+                        )
+                        .opacity(progress)
+                        .animation(.easeInOut(duration: Double.random(in: 2...4)).repeatForever(autoreverses: true), value: progress)
+                }
+            )
+            .ignoresSafeArea()
+        }
     }
 }
 

@@ -32,6 +32,10 @@ struct GeneratingStepView: View {
     
     var body: some View {
         ZStack {
+            // Full screen opaque background to prevent bleed-through
+            Color.black
+                .ignoresSafeArea()
+            
             // Simple static background
             LinearGradient(
                 gradient: Gradient(stops: [
@@ -44,31 +48,36 @@ struct GeneratingStepView: View {
             )
             .ignoresSafeArea()
             
-            VStack(spacing: 32) {
-                Spacer()
-                
-                // Main progress section - fixed position
-                VStack(spacing: 24) {
-                    progressSection
-                    titleSection
+            ScrollView {
+                VStack(spacing: 32) {
+                    Spacer(minLength: 50)
+                    
+                    // Main progress section - fixed position
+                    VStack(spacing: 24) {
+                        progressSection
+                        titleSection
+                    }
+                    
+                    // Current lesson being generated
+                    if !currentLessonBeingGenerated.isEmpty {
+                        currentLessonSection
+                    }
+                    
+                    // Generation steps - simplified
+                    generationStepsSection
+                    
+                    Spacer(minLength: 30)
+                    
+                    // Action buttons
+                    actionButtonsSection
+                    
+                    Spacer(minLength: 50)
                 }
-                .frame(maxHeight: .infinity, alignment: .center)
-                
-                // Current lesson being generated
-                if !currentLessonBeingGenerated.isEmpty {
-                    currentLessonSection
-                }
-                
-                // Generation steps - simplified
-                generationStepsSection
-                
-                Spacer()
-                
-                // Action buttons
-                actionButtonsSection
+                .padding(.horizontal, 24)
             }
-            .padding(.horizontal, 24)
+            .scrollIndicators(.hidden)
         }
+        .background(Color.black) // Extra background layer for safety
         .onAppear {
             withAnimation(.easeOut(duration: 0.8)) {
                 animationProgress = 1.0
