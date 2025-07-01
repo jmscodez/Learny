@@ -18,90 +18,153 @@ struct GeneratingStepView: View {
     @State private var currentStep = 0
     @State private var particles: [LoadingParticle] = []
     @State private var pulseAnimation = false
+    @State private var currentStoryStep = ""
+    @State private var previewLessons: [PreviewLesson] = []
+    @State private var showingPreviewCards = false
+    @State private var sparkleAnimations: [SparkleAnimation] = []
+    
+    // Dynamic progress story steps
+    private let progressSteps = [
+        ProgressStep(title: "Analyzing Your Learning Style", icon: "brain.head.profile", description: "Understanding how you learn best"),
+        ProgressStep(title: "Selecting Perfect Topics", icon: "target", description: "Choosing the most relevant concepts"),
+        ProgressStep(title: "Crafting Lesson Structure", icon: "building.columns", description: "Organizing content for optimal learning"),
+        ProgressStep(title: "Generating Content", icon: "doc.text", description: "Creating personalized lessons"),
+        ProgressStep(title: "Final Touches", icon: "sparkles", description: "Polishing your learning experience")
+    ]
     
     var body: some View {
         ZStack {
-            // App's signature gradient background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.05, green: 0.05, blue: 0.15),
-                    Color(red: 0.08, green: 0.1, blue: 0.2),
-                    Color(red: 0.1, green: 0.15, blue: 0.25)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea(.all)
-            
-            // Enhanced floating particles
-            ForEach(particles.indices, id: \.self) { index in
-                let particle = particles[index]
-                Group {
-                    if index % 4 == 0 {
-                        // Star particles
-                        Image(systemName: "sparkle")
-                            .font(.system(size: particle.size))
-                            .foregroundColor(particle.color)
-                            .opacity(particle.opacity)
-                            .scaleEffect(particle.scale)
-                            .position(particle.position)
-                            .animation(
-                                .easeInOut(duration: particle.duration)
-                                .repeatForever(autoreverses: true)
-                                .delay(particle.delay),
-                                value: pulseAnimation
-                            )
-                    } else {
-                        // Geometric particles
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    gradient: Gradient(colors: [
-                                        particle.color,
-                                        particle.color.opacity(0.3)
-                                    ]),
-                                    center: .center,
-                                    startRadius: 1,
-                                    endRadius: particle.size/2
-                                )
-                            )
-                            .frame(width: particle.size, height: particle.size)
-                            .position(particle.position)
-                            .opacity(particle.opacity)
-                            .scaleEffect(particle.scale)
-                            .animation(
-                                .easeInOut(duration: particle.duration)
-                                .repeatForever(autoreverses: true)
-                                .delay(particle.delay),
-                                value: pulseAnimation
-                            )
-                    }
-                }
-            }
-            
-            VStack(spacing: 20) {
-                Spacer()
-                
-                titleSection
-                
-                progressSection
-                
-                enhancedProgressBar
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
+            backgroundView
+            particleSystemView
+            contentView
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.8)) {
-                animationProgress = 1.0
+            setupView()
+        }
+        .onChange(of: progress) { _, newProgress in
+            updateProgress(newProgress)
+        }
+    }
+    
+    private var backgroundView: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 0.05, green: 0.05, blue: 0.15),
+                Color(red: 0.08, green: 0.1, blue: 0.2),
+                Color(red: 0.1, green: 0.15, blue: 0.25)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea(.all)
+    }
+    
+    private var particleSystemView: some View {
+        ZStack {
+            // Enhanced floating particles
+            ForEach(Array(particles.enumerated()), id: \.offset) { index, particle in
+                particleView(particle, index: index)
             }
-            setupLoadingParticles()
-            startLoadingAnimations()
+            
+            // Milestone sparkle bursts
+            ForEach(Array(sparkleAnimations.enumerated()), id: \.offset) { index, sparkle in
+                sparkleView(sparkle)
+            }
         }
-        .onChange(of: progress) { newProgress in
-            updateCurrentStep(for: newProgress)
+    }
+    
+    private func particleView(_ particle: LoadingParticle, index: Int) -> some View {
+        Group {
+            if index % 4 == 0 {
+                Image(systemName: "sparkle")
+                    .font(.system(size: particle.size))
+                    .foregroundColor(particle.color)
+                    .opacity(particle.opacity * (0.5 + progress * 0.5))
+                    .scaleEffect(particle.scale * (0.8 + progress * 0.4))
+                    .position(particle.position)
+                    .animation(
+                        .easeInOut(duration: particle.duration)
+                        .repeatForever(autoreverses: true)
+                        .delay(particle.delay),
+                        value: pulseAnimation
+                    )
+            } else {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                particle.color,
+                                particle.color.opacity(0.3)
+                            ]),
+                            center: .center,
+                            startRadius: 1,
+                            endRadius: particle.size/2
+                        )
+                    )
+                    .frame(width: particle.size, height: particle.size)
+                    .position(particle.position)
+                    .opacity(particle.opacity * (0.4 + progress * 0.6))
+                    .scaleEffect(particle.scale * (0.7 + progress * 0.5))
+                    .animation(
+                        .easeInOut(duration: particle.duration)
+                        .repeatForever(autoreverses: true)
+                        .delay(particle.delay),
+                        value: pulseAnimation
+                    )
+            }
         }
+    }
+    
+    private func sparkleView(_ sparkle: SparkleAnimation) -> some View {
+        Group {
+            if sparkle.isVisible {
+                ForEach(0..<8, id: \.self) { burstIndex in
+                    Image(systemName: "sparkle")
+                        .font(.system(size: CGFloat.random(in: 12...20)))
+                        .foregroundColor(.cyan)
+                        .opacity(sparkle.opacity)
+                        .scaleEffect(sparkle.scale)
+                        .position(
+                            x: sparkle.position.x + cos(Double(burstIndex) * .pi / 4) * sparkle.radius,
+                            y: sparkle.position.y + sin(Double(burstIndex) * .pi / 4) * sparkle.radius
+                        )
+                }
+            }
+        }
+    }
+    
+    private var contentView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            titleSection
+            currentStepSection
+            progressSection
+            
+            // Always reserve space for preview cards to prevent layout shift
+            previewCardsSection
+            
+            enhancedProgressBar
+            
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private func setupView() {
+        withAnimation(.easeOut(duration: 0.8)) {
+            animationProgress = 1.0
+        }
+        setupLoadingParticles()
+        startLoadingAnimations()
+        generatePreviewLessons()
+    }
+    
+    private func updateProgress(_ newProgress: Double) {
+        updateCurrentStep(for: newProgress)
+        updateStoryStep(for: newProgress)
+        updatePreviewCards(for: newProgress)
+        checkForMilestones(newProgress: newProgress)
     }
     
     private var titleSection: some View {
@@ -177,6 +240,90 @@ struct GeneratingStepView: View {
         }
     }
     
+    private var currentStepSection: some View {
+        VStack(spacing: 12) {
+            if currentStep < progressSteps.count {
+                let step = progressSteps[currentStep]
+                
+                HStack(spacing: 12) {
+                    // Animated step icon
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.3),
+                                        Color(red: 0.2, green: 0.6, blue: 1.0).opacity(0.2)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 40, height: 40)
+                            .scaleEffect(pulseAnimation ? 1.1 : 1.0)
+                            .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: pulseAnimation)
+                        
+                        Image(systemName: step.icon)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .scaleEffect(pulseAnimation ? 1.2 : 1.0)
+                            .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: pulseAnimation)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(step.title)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                        
+                        Text(step.description)
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                    
+                    // AI thinking indicator
+                    HStack(spacing: 3) {
+                        ForEach(0..<3, id: \.self) { index in
+                            Circle()
+                                .fill(Color.cyan.opacity(0.8))
+                                .frame(width: 6, height: 6)
+                                .scaleEffect(pulseAnimation ? 1.2 : 0.8)
+                                .animation(
+                                    .easeInOut(duration: 0.6)
+                                    .repeatForever(autoreverses: true)
+                                    .delay(Double(index) * 0.2),
+                                    value: pulseAnimation
+                                )
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.4),
+                                            Color(red: 0.2, green: 0.6, blue: 1.0).opacity(0.2)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                )
+                .transition(.opacity.combined(with: .scale))
+            }
+        }
+    }
+    
     private var progressSection: some View {
         ZStack {
             // Outer glow rings with enhanced blue theme
@@ -245,6 +392,38 @@ struct GeneratingStepView: View {
         }
     }
     
+    private var previewCardsSection: some View {
+        VStack(spacing: 12) {
+            // Always show header but with conditional opacity
+            HStack {
+                Image(systemName: "doc.text")
+                    .font(.headline)
+                    .foregroundColor(.cyan)
+                
+                Text("Preview Lessons")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.9))
+                
+                Spacer()
+            }
+            .opacity(showingPreviewCards ? 1.0 : 0.0)
+            .animation(.easeInOut(duration: 0.6), value: showingPreviewCards)
+            
+            // Always reserve space for cards (120 height) to prevent layout shift
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(previewLessons) { lesson in
+                        PreviewLessonCard(lesson: lesson, progress: progress)
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+            .frame(height: 80) // Fixed height to prevent layout shifts
+        }
+        .frame(height: 120) // Fixed total height for the section
+    }
+    
     private var enhancedProgressBar: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -297,7 +476,7 @@ struct GeneratingStepView: View {
     }
     
     private func setupLoadingParticles() {
-        particles = (0..<20).map { i in
+        particles = (0..<25).map { i in
             let particleColors: [Color] = [
                 Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.6),
                 Color(red: 0.2, green: 0.6, blue: 1.0).opacity(0.5),
@@ -322,6 +501,15 @@ struct GeneratingStepView: View {
         }
     }
     
+    private func generatePreviewLessons() {
+        previewLessons = [
+            PreviewLesson(id: 0, title: "Introduction to \(topic)", isVisible: false),
+            PreviewLesson(id: 1, title: "Core Concepts", isVisible: false),
+            PreviewLesson(id: 2, title: "Practical Applications", isVisible: false),
+            PreviewLesson(id: 3, title: "Advanced Topics", isVisible: false)
+        ]
+    }
+    
     private func startLoadingAnimations() {
         withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
             pulseAnimation = true
@@ -329,12 +517,174 @@ struct GeneratingStepView: View {
     }
     
     private func updateCurrentStep(for progress: Double) {
-        let newStep = min(Int(progress * 5), 4) // 5 steps total
+        let newStep = min(Int(progress * Double(progressSteps.count)), progressSteps.count - 1)
         if newStep != currentStep {
             withAnimation(.spring()) {
                 currentStep = newStep
             }
         }
+    }
+    
+    private func updateStoryStep(for progress: Double) {
+        if currentStep < progressSteps.count {
+            currentStoryStep = progressSteps[currentStep].title
+        }
+    }
+    
+    private func updatePreviewCards(for progress: Double) {
+        // Show header when progress reaches 30%
+        if progress > 0.3 && !showingPreviewCards {
+            withAnimation(.easeInOut(duration: 0.8)) {
+                showingPreviewCards = true
+            }
+        }
+        
+        // Show cards progressively one by one
+        for i in 0..<previewLessons.count {
+            let threshold = 0.4 + Double(i) * 0.15
+            if progress > threshold && !previewLessons[i].isVisible {
+                withAnimation(.easeInOut(duration: 0.6).delay(Double(i) * 0.3)) {
+                    previewLessons[i].isVisible = true
+                }
+            }
+        }
+    }
+    
+    private func checkForMilestones(newProgress: Double) {
+        let milestones: [Double] = [0.25, 0.5, 0.75, 1.0]
+        
+        for milestone in milestones {
+            if newProgress >= milestone && progress < milestone {
+                triggerSparklesBurst(at: milestone)
+            }
+        }
+    }
+    
+    private func triggerSparklesBurst(at milestone: Double) {
+        let sparkle = SparkleAnimation(
+            position: CGPoint(x: 180, y: 400), // Center of progress ring
+            isVisible: true,
+            opacity: 1.0,
+            scale: 0.5,
+            radius: 0
+        )
+        
+        sparkleAnimations.append(sparkle)
+        
+        withAnimation(.easeOut(duration: 1.0)) {
+            if let index = sparkleAnimations.firstIndex(where: { $0.id == sparkle.id }) {
+                sparkleAnimations[index].scale = 1.5
+                sparkleAnimations[index].radius = 50
+                sparkleAnimations[index].opacity = 0.0
+            }
+        }
+        
+        // Remove after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            sparkleAnimations.removeAll { $0.id == sparkle.id }
+        }
+    }
+}
+
+// MARK: - Supporting Models
+
+struct ProgressStep {
+    let title: String
+    let icon: String
+    let description: String
+}
+
+struct PreviewLesson: Identifiable {
+    let id: Int
+    let title: String
+    var isVisible: Bool
+}
+
+struct SparkleAnimation: Identifiable {
+    let id = UUID()
+    let position: CGPoint
+    var isVisible: Bool
+    var opacity: Double
+    var scale: Double
+    var radius: Double
+}
+
+// MARK: - Supporting Views
+
+struct PreviewLessonCard: View {
+    let lesson: PreviewLesson
+    let progress: Double
+    @State private var shimmerPhase: CGFloat = 0
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "doc.text")
+                    .font(.caption)
+                    .foregroundColor(.cyan.opacity(0.8))
+                
+                Spacer()
+                
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundColor(.yellow.opacity(0.6))
+            }
+            
+            Text(lesson.title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.white.opacity(0.9))
+                .multilineTextAlignment(.leading)
+                .lineLimit(2)
+            
+            // Progress indicator
+            RoundedRectangle(cornerRadius: 2)
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 0.0, green: 0.8, blue: 1.0).opacity(0.6),
+                            Color(red: 0.2, green: 0.6, blue: 1.0).opacity(0.4)
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 3)
+                .frame(width: progress > 0.5 ? 60 : 30)
+                .animation(.easeInOut(duration: 0.8), value: progress)
+        }
+        .padding(12)
+        .frame(width: 120, height: 80)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            .white.opacity(0.08),
+                            .blue.opacity(0.05)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    .cyan.opacity(0.3),
+                                    .blue.opacity(0.2)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .opacity(lesson.isVisible ? 1.0 : 0.0)
+        .scaleEffect(lesson.isVisible ? 1.0 : 0.8)
+        .animation(.easeInOut(duration: 0.6), value: lesson.isVisible)
     }
 }
 
@@ -343,7 +693,7 @@ struct GeneratingStepView: View {
 
 #Preview {
     GeneratingStepView(
-        topic: "World War 2",
+        topic: "Dogs",
         selectedLessons: [],
         progress: .constant(0.6),
         isVisible: .constant(true),

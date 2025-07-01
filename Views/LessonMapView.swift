@@ -1,17 +1,183 @@
 import SwiftUI
 
-// A simple linear progress bar to replace ProgressView determinate style
+// MARK: - Dynamic Theme Engine
+struct LessonTheme {
+    let primaryColor: Color
+    let secondaryColor: Color
+    let accentColor: Color
+    let backgroundGradient: [Color]
+    let particleColor: Color
+    let iconName: String
+    let ambientElements: [AmbientElement]
+}
+
+struct AmbientElement {
+    let symbol: String
+    let color: Color
+    let size: CGFloat
+    let opacity: Double
+}
+
+class ThemeEngine {
+    static func generateTheme(for course: Course) -> LessonTheme {
+        let topic = course.title.lowercased()
+        
+        // Science themes
+        if topic.contains("science") || topic.contains("biology") || topic.contains("chemistry") || topic.contains("physics") {
+            return LessonTheme(
+                primaryColor: .cyan,
+                secondaryColor: .blue,
+                accentColor: .green,
+                backgroundGradient: [
+                    Color(red: 0.1, green: 0.3, blue: 0.8),
+                    Color(red: 0.0, green: 0.5, blue: 0.7),
+                    Color(red: 0.1, green: 0.7, blue: 0.5)
+                ],
+                particleColor: .cyan,
+                iconName: "atom",
+                ambientElements: [
+                    AmbientElement(symbol: "circle.fill", color: .cyan.opacity(0.3), size: 8, opacity: 0.6),
+                    AmbientElement(symbol: "hexagon.fill", color: .blue.opacity(0.2), size: 12, opacity: 0.4)
+                ]
+            )
+        }
+        
+        // History themes
+        if topic.contains("history") || topic.contains("ancient") || topic.contains("empire") {
+            return LessonTheme(
+                primaryColor: .brown,
+                secondaryColor: .orange,
+                accentColor: .yellow,
+                backgroundGradient: [
+                    Color(red: 0.4, green: 0.2, blue: 0.1),
+                    Color(red: 0.6, green: 0.3, blue: 0.1),
+                    Color(red: 0.8, green: 0.4, blue: 0.2)
+                ],
+                particleColor: .orange,
+                iconName: "scroll.fill",
+                ambientElements: [
+                    AmbientElement(symbol: "triangle.fill", color: .orange.opacity(0.3), size: 10, opacity: 0.5),
+                    AmbientElement(symbol: "diamond.fill", color: .yellow.opacity(0.2), size: 8, opacity: 0.4)
+                ]
+            )
+        }
+        
+        // Math themes
+        if topic.contains("math") || topic.contains("algebra") || topic.contains("geometry") {
+            return LessonTheme(
+                primaryColor: .purple,
+                secondaryColor: .pink,
+                accentColor: .blue,
+                backgroundGradient: [
+                    Color(red: 0.3, green: 0.1, blue: 0.8),
+                    Color(red: 0.5, green: 0.2, blue: 0.9),
+                    Color(red: 0.4, green: 0.3, blue: 0.7)
+                ],
+                particleColor: .purple,
+                iconName: "function",
+                ambientElements: [
+                    AmbientElement(symbol: "square.fill", color: .purple.opacity(0.3), size: 10, opacity: 0.5),
+                    AmbientElement(symbol: "circle.fill", color: .pink.opacity(0.2), size: 6, opacity: 0.4)
+                ]
+            )
+        }
+        
+        // Default theme
+        return LessonTheme(
+            primaryColor: .blue,
+            secondaryColor: .cyan,
+            accentColor: .green,
+            backgroundGradient: [
+                Color(red: 0.2, green: 0.4, blue: 0.8),
+                Color(red: 0.1, green: 0.6, blue: 0.7),
+                Color(red: 0.2, green: 0.7, blue: 0.5)
+            ],
+            particleColor: .blue,
+            iconName: "book.fill",
+            ambientElements: [
+                AmbientElement(symbol: "circle.fill", color: .blue.opacity(0.3), size: 8, opacity: 0.5)
+            ]
+        )
+    }
+    
+    static func generateLessonIcon(for lesson: Lesson, in course: Course) -> String {
+        let title = lesson.title.lowercased()
+        let courseTitle = course.title.lowercased()
+        
+        // Science-specific icons
+        if courseTitle.contains("science") || courseTitle.contains("biology") {
+            if title.contains("cell") || title.contains("cellular") {
+                return "circle.hexagongrid.fill"
+            } else if title.contains("dna") || title.contains("genetic") {
+                return "link"
+            } else if title.contains("respiration") || title.contains("breathing") {
+                return "lungs.fill"
+            } else if title.contains("photosynthesis") || title.contains("plant") {
+                return "leaf.fill"
+            } else if title.contains("evolution") || title.contains("darwin") {
+                return "arrow.triangle.branch"
+            }
+            return "atom"
+        }
+        
+        // History-specific icons
+        if courseTitle.contains("history") {
+            if title.contains("empire") || title.contains("kingdom") {
+                return "crown.fill"
+            } else if title.contains("war") || title.contains("battle") {
+                return "shield.fill"
+            } else if title.contains("culture") || title.contains("art") {
+                return "paintbrush.fill"
+            } else if title.contains("trade") || title.contains("economy") {
+                return "dollarsign.circle.fill"
+            }
+            return "scroll.fill"
+        }
+        
+        // Math-specific icons
+        if courseTitle.contains("math") {
+            if title.contains("algebra") || title.contains("equation") {
+                return "x.squareroot"
+            } else if title.contains("geometry") || title.contains("triangle") {
+                return "triangle.fill"
+            } else if title.contains("calculus") || title.contains("derivative") {
+                return "function"
+            }
+            return "number.square.fill"
+        }
+        
+        // Default icons based on lesson type
+        switch lesson.type {
+        case .videoLesson:
+            return "play.circle.fill"
+        case .checkpointQuiz:
+            return "questionmark.circle.fill"
+        case .readingMaterial:
+            return "book.fill"
+        case .interactiveDemo:
+            return "hand.tap.fill"
+        case .lesson:
+            return "book.fill"
+        case .practiceExercise:
+            return "pencil.circle.fill"
+        }
+    }
+}
+
+// Enhanced progress bar with theme support
 struct CustomProgressBar: View {
-    var progress: Double // 0.0 to 1.0
+    var progress: Double
+    var theme: LessonTheme
+    
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule()
                     .frame(height: 4)
-                    .foregroundColor(.gray.opacity(0.3))
+                    .foregroundColor(.white.opacity(0.3))
                 Capsule()
                     .frame(width: geo.size.width * CGFloat(progress), height: 4)
-                    .foregroundColor(.cyan)
+                    .foregroundColor(theme.primaryColor)
                     .animation(.easeInOut, value: progress)
             }
         }
@@ -32,48 +198,57 @@ struct LessonMapView: View {
     @State private var showStudyTimer = false
     @State private var animateProgress = false
     @State private var showMoreLessonsOption = false
+    @State private var particleAnimations: [UUID: Bool] = [:]
+    
+    private let theme: LessonTheme
     
     init(course: Course) {
         _viewModel = StateObject(wrappedValue: LessonMapViewModel(course: course))
+        self.theme = ThemeEngine.generateTheme(for: course)
     }
     
     var body: some View {
         NavigationView {
             GeometryReader { geometry in
                 ZStack {
-                    // Enhanced gradient background that fits the UI better
+                    // Enhanced gradient background
                     LinearGradient(
-                        colors: [
-                            Color(red: 0.2, green: 0.4, blue: 0.8),  // Deeper blue
-                            Color(red: 0.1, green: 0.6, blue: 0.7),  // Rich teal
-                            Color(red: 0.2, green: 0.7, blue: 0.5),  // Forest green
-                            Color(red: 0.3, green: 0.8, blue: 0.4)   // Vibrant green
-                        ],
+                        colors: theme.backgroundGradient + [theme.backgroundGradient.last!.opacity(0.7)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                     .ignoresSafeArea()
                     
-                    // Floating elements for depth
+                    // Subtle floating particles
                     ForEach(0..<8, id: \.self) { index in
-                        Circle()
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: CGFloat.random(in: 20...60))
+                        let element = theme.ambientElements.randomElement() ?? theme.ambientElements.first!
+                        let animationKey = UUID()
+                        
+                        Image(systemName: element.symbol)
+                            .font(.system(size: element.size))
+                            .foregroundColor(element.color.opacity(0.3))
                             .position(
-                                x: CGFloat.random(in: 0...geometry.size.width),
-                                y: CGFloat.random(in: 0...geometry.size.height)
+                                x: CGFloat.random(in: 50...geometry.size.width - 50),
+                                y: CGFloat.random(in: 100...geometry.size.height - 100)
                             )
+                            .opacity(particleAnimations[animationKey] == true ? 0.4 : 0.1)
                             .animation(
-                                .easeInOut(duration: Double.random(in: 3...6))
+                                .easeInOut(duration: Double.random(in: 6...10))
                                 .repeatForever(autoreverses: true),
-                                value: animateProgress
+                                value: particleAnimations[animationKey]
                             )
+                            .onAppear {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.5) {
+                                    particleAnimations[animationKey] = true
+                                }
+                            }
                     }
                     
                     VStack(spacing: 0) {
                         // Enhanced Header
                         DuolingoStyleHeader(
                             course: viewModel.course,
+                            theme: theme,
                             onBackTapped: { dismiss() },
                             onInfoTapped: { showCourseDetails = true },
                             onTimerTapped: { showStudyTimer = true }
@@ -89,7 +264,7 @@ struct LessonMapView: View {
                                         .foregroundColor(.white)
                                         .shadow(color: .black.opacity(0.3), radius: 2)
                                     
-                                    ProgressOverview(course: viewModel.course)
+                                    ProgressOverview(course: viewModel.course, theme: theme)
                                 }
                                 .padding(.top, 20)
                                 .padding(.horizontal, 20)
@@ -97,6 +272,10 @@ struct LessonMapView: View {
                                 // The lesson path with proper locking
                                 LessonPath(
                                     lessons: processedLessons,
+                                    course: viewModel.course,
+                                    theme: theme,
+                                    viewModel: viewModel,
+                                    showMoreLessonsOption: $showMoreLessonsOption,
                                     onLessonTap: { lesson in
                                         if !lesson.isLocked {
                                             selectedLesson = lesson
@@ -195,6 +374,7 @@ struct LessonMapView: View {
 // MARK: - Enhanced Header
 private struct DuolingoStyleHeader: View {
     let course: Course
+    let theme: LessonTheme
     let onBackTapped: () -> Void
     let onInfoTapped: () -> Void
     let onTimerTapped: () -> Void
@@ -219,7 +399,7 @@ private struct DuolingoStyleHeader: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .background(Color.blue.opacity(0.3))
+                    .background(theme.primaryColor.opacity(0.3))
                     .cornerRadius(22)
                     .shadow(color: .black.opacity(0.3), radius: 4)
             }
@@ -228,7 +408,7 @@ private struct DuolingoStyleHeader: View {
             HStack(spacing: 8) {
                 Image(systemName: "flame.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(.orange)
+                    .foregroundColor(theme.accentColor)
                 Text("5")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
@@ -243,7 +423,7 @@ private struct DuolingoStyleHeader: View {
             HStack(spacing: 8) {
                 Image(systemName: "star.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(.yellow)
+                    .foregroundColor(theme.secondaryColor)
                 Text("\(course.totalXP)")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
@@ -272,6 +452,7 @@ private struct DuolingoStyleHeader: View {
 // MARK: - Progress Overview
 private struct ProgressOverview: View {
     let course: Course
+    let theme: LessonTheme
     
     var body: some View {
         VStack(spacing: 8) {
@@ -285,7 +466,7 @@ private struct ProgressOverview: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(
                             LinearGradient(
-                                colors: [.yellow, .orange],
+                                colors: [theme.primaryColor, theme.secondaryColor],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -311,99 +492,118 @@ private struct ProgressOverview: View {
     }
 }
 
-// MARK: - Enhanced Lesson Path
+// MARK: - Modern Lesson Path with Pills
 private struct LessonPath: View {
     let lessons: [Lesson]
+    let course: Course
+    let theme: LessonTheme
+    let viewModel: LessonMapViewModel
+    @Binding var showMoreLessonsOption: Bool
     let onLessonTap: (Lesson) -> Void
     let screenWidth: CGFloat
     
+    @State private var pathAnimationProgress: CGFloat = 0
+    
     var body: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
-            let pathSpacing: CGFloat = 140
-            
-            ZStack {
-                // Draw connecting path
-                Path { path in
-                    for index in 0..<lessons.count {
-                        let position = nodePosition(for: index, width: width, spacing: pathSpacing)
-                        
-                        if index == 0 {
-                            path.move(to: position)
-                        } else {
-                            path.addLine(to: position)
-                        }
-                    }
-                }
-                .stroke(Color.white.opacity(0.3), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+        VStack(spacing: 20) {
+            ForEach(lessons.indices, id: \.self) { index in
+                let lesson = lessons[index]
                 
-                // Draw completed path sections
-                Path { path in
-                    for index in 0..<lessons.count {
-                        if lessons[index].isCompleted || lessons[index].isCurrent {
-                            let position = nodePosition(for: index, width: width, spacing: pathSpacing)
-                            
-                            if index == 0 || (index > 0 && lessons[index - 1].isCompleted) {
-                                if index == 0 {
-                                    path.move(to: position)
-                                } else {
-                                    let prevPosition = nodePosition(for: index - 1, width: width, spacing: pathSpacing)
-                                    path.move(to: prevPosition)
-                                    path.addLine(to: position)
-                                }
-                            }
-                        }
+                VStack(spacing: 12) {
+                    // Connection line (except for first lesson)
+                    if index > 0 {
+                        ConnectionLine(
+                            isCompleted: lessons[index - 1].isCompleted,
+                            theme: theme
+                        )
                     }
-                }
-                .stroke(
-                    LinearGradient(
-                        colors: [.yellow, .orange, .green],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                )
-                
-                // Lesson nodes
-                ForEach(lessons.indices, id: \.self) { index in
-                    let lesson = lessons[index]
-                    let position = nodePosition(for: index, width: width, spacing: pathSpacing)
                     
-                    DuolingoLessonNode(
+                    // Lesson pill card
+                    LessonPillCard(
                         lesson: lesson,
+                        course: course,
+                        theme: theme,
                         index: index + 1,
-                        screenWidth: screenWidth,
                         onTap: { onLessonTap(lesson) }
                     )
-                    .position(position)
                 }
             }
+            
+            // Generate more lessons button at the bottom
+            if lessons.allSatisfy({ $0.isCompleted }) {
+                GenerateMoreButton(theme: theme) {
+                    showMoreLessonsOption = true
+                }
+                .padding(.top, 30)
+            }
         }
-        .frame(height: CGFloat(lessons.count) * 140 + 100)
-    }
-    
-    private func nodePosition(for index: Int, width: CGFloat, spacing: CGFloat) -> CGPoint {
-        let centerX = width / 2
-        let y = CGFloat(index) * spacing + 50
-        
-        // Create a winding path like Duolingo
-        let amplitude: CGFloat = 80
-        let frequency: Double = 0.6
-        let offset = sin(Double(index) * frequency) * amplitude
-        
-        return CGPoint(x: centerX + offset, y: y)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 20)
     }
 }
 
-// MARK: - Enhanced Duolingo Lesson Node
-private struct DuolingoLessonNode: View {
+// MARK: - Connection Line
+private struct ConnectionLine: View {
+    let isCompleted: Bool
+    let theme: LessonTheme
+    
+    var body: some View {
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    colors: isCompleted ? 
+                        [theme.primaryColor, theme.secondaryColor] : 
+                        [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(width: 4, height: 40)
+            .cornerRadius(2)
+    }
+}
+
+// MARK: - Generate More Button
+private struct GenerateMoreButton: View {
+    let theme: LessonTheme
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                
+                Text("Generate More Lessons")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [theme.primaryColor, theme.secondaryColor],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(25)
+            .shadow(color: theme.primaryColor.opacity(0.4), radius: 8, x: 0, y: 4)
+        }
+    }
+}
+
+
+
+// MARK: - Lesson Pill Card
+private struct LessonPillCard: View {
     let lesson: Lesson
+    let course: Course
+    let theme: LessonTheme
     let index: Int
-    let screenWidth: CGFloat
     let onTap: () -> Void
     
     @State private var isPressed = false
-    @State private var bounceAnimation = false
     @State private var glowAnimation = false
     
     var body: some View {
@@ -412,121 +612,148 @@ private struct DuolingoLessonNode: View {
                 onTap()
             }
         }) {
-            ZStack {
-                // Glow effect for current lesson
-                if lesson.isCurrent {
+            HStack(spacing: 16) {
+                // Lesson number circle
+                ZStack {
                     Circle()
-                        .fill(Color.yellow.opacity(glowAnimation ? 0.6 : 0.2))
-                        .frame(width: 100, height: 100)
-                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: glowAnimation)
-                }
-                
-                // Main circle
-                Circle()
-                    .fill(nodeColor)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white, lineWidth: lesson.isCurrent ? 4 : 2)
-                    )
-                    .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
-                
-                // Content
-                VStack(spacing: 4) {
-                    Image(systemName: nodeIcon)
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
+                        .fill(
+                            LinearGradient(
+                                colors: circleGradientColors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
                     
-                    Text("\(index)")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                
-                // Lock overlay for locked lessons
-                if lesson.isLocked {
-                    Circle()
-                        .fill(Color.black.opacity(0.6))
-                        .frame(width: 80, height: 80)
-                    
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white)
-                }
-                
-                // Checkmark for completed lessons
-                if lesson.isCompleted {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(.green)
-                                .background(Color.white, in: Circle())
-                                .offset(x: 8, y: -8)
-                        }
-                        Spacer()
+                    if lesson.isLocked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                    } else if lesson.isCompleted {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                    } else {
+                        Text("\(index)")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
                     }
-                    .frame(width: 80, height: 80)
                 }
+                .shadow(color: theme.primaryColor.opacity(0.3), radius: 4, x: 0, y: 2)
+                
+                // Lesson content
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(lesson.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                    
+                    HStack(spacing: 8) {
+                        Image(systemName: dynamicIcon)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                        
+                        Text(statusText)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                        
+                        Spacer()
+                        
+                        if lesson.isCurrent {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(theme.accentColor)
+                        }
+                    }
+                }
+                
+                Spacer()
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(
+                        LinearGradient(
+                            colors: cardGradientColors,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .shadow(
+                color: lesson.isCurrent ? theme.primaryColor.opacity(0.4) : Color.black.opacity(0.2),
+                radius: lesson.isCurrent ? 12 : 6,
+                x: 0,
+                y: lesson.isCurrent ? 6 : 3
+            )
         }
         .disabled(lesson.isLocked)
-        .scaleEffect(isPressed ? 0.9 : (bounceAnimation ? 1.1 : 1.0))
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: bounceAnimation)
+        .scaleEffect(isPressed ? 0.98 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
         .onAppear {
             if lesson.isCurrent {
                 glowAnimation = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.1) {
-                    bounceAnimation = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        bounceAnimation = false
-                    }
-                }
             }
         }
         .pressAction { pressed in
             isPressed = pressed
         }
-        
-        // Dynamic lesson title positioning
-        .overlay(
-            VStack {
-                Spacer()
-                Text(lesson.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .shadow(color: .black.opacity(0.6), radius: 2)
-                    .padding(.horizontal, 8)
-                    .frame(width: min(screenWidth * 0.4, 140))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .offset(y: 55)
-            }
-        )
     }
     
-    private var nodeColor: Color {
+    private var circleGradientColors: [Color] {
         if lesson.isCompleted {
-            return Color.green
+            return [theme.accentColor, theme.accentColor.opacity(0.8)]
         } else if lesson.isCurrent {
-            return Color.orange
+            return [theme.primaryColor, theme.secondaryColor]
         } else if !lesson.isLocked {
-            return Color.blue
+            return [theme.secondaryColor.opacity(0.9), theme.primaryColor.opacity(0.7)]
         } else {
-            return Color.gray
+            return [Color.gray.opacity(0.7), Color.gray.opacity(0.5)]
         }
     }
     
-    private var nodeIcon: String {
-        if lesson.isCompleted {
-            return "star.fill"
+    private var cardGradientColors: [Color] {
+        if lesson.isLocked {
+            return [Color.black.opacity(0.4), Color.black.opacity(0.6)]
         } else if lesson.isCurrent {
-            return "play.fill"
-        } else if !lesson.isLocked {
-            return lesson.type.icon
+            return [Color.white.opacity(0.15), Color.white.opacity(0.25)]
         } else {
+            return [Color.white.opacity(0.1), Color.white.opacity(0.2)]
+        }
+    }
+    
+    private var dynamicIcon: String {
+        if lesson.isLocked {
             return "lock.fill"
+        } else if lesson.isCompleted {
+            return "checkmark.circle.fill"
+        } else {
+            return ThemeEngine.generateLessonIcon(for: lesson, in: course)
+        }
+    }
+    
+    private var statusText: String {
+        if lesson.isCompleted {
+            return "Completed"
+        } else if lesson.isCurrent {
+            return "Continue Learning"
+        } else if lesson.isLocked {
+            return "Locked"
+        } else {
+            return "Ready to Start"
         }
     }
 }

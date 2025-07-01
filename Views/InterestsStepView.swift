@@ -165,8 +165,7 @@ struct InterestsStepView: View {
             .ignoresSafeArea(.all)
             
             // Enhanced floating particles
-            ForEach(loadingParticles.indices, id: \.self) { index in
-                let particle = loadingParticles[index]
+            ForEach(Array(loadingParticles.enumerated()), id: \.offset) { index, particle in
                 Group {
                     if index % 4 == 0 {
                         // Star particles
@@ -742,8 +741,6 @@ struct InterestsStepView: View {
                         
                         Image(systemName: "arrow.right")
                             .font(.headline)
-                            .scaleEffect(hasSelections ? 1.1 : 1.0)
-                            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: hasSelections)
                     }
                 }
                 .foregroundColor(.white)

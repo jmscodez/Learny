@@ -1764,8 +1764,7 @@ struct InitialLoadingView: View {
             .ignoresSafeArea()
             
             // Floating particles for visual appeal
-            ForEach(particles.indices, id: \.self) { index in
-                let particle = particles[index]
+            ForEach(Array(particles.enumerated()), id: \.offset) { index, particle in
                 Circle()
                     .fill(particle.color)
                     .frame(width: particle.size, height: particle.size)
