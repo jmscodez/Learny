@@ -662,7 +662,7 @@ private struct ModernCourseCard: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .onPressGesture { pressed in
+        .pressAction { pressed in
             isPressed = pressed
         }
     }
